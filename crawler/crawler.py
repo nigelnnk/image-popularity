@@ -27,11 +27,14 @@ MAX_IMG = args.max_img
 MAX_WORKERS = args.no_workers
 MAX_RESOLUTION = (args.max_reso, args.max_reso)
 ACCEPTABLE_EXTENSIONS = ["jpg", "png"]
+req_header = { "User-Agent": "CS4243 crawler bot", "From": "nnk@u.nus.edu" }
 reddit = praw.Reddit("cs4243")
 job_pool = queue.Queue()
 
 def get_image(url, filename) :
-    req = requests.get(url, stream=True)
+    req = requests.get(url, stream=True, headers=req_header)
+    if not req.ok:
+        return
     with open(filename, 'wb') as f:
         for chunk in req.iter_content(1024):
             if chunk:
@@ -44,10 +47,11 @@ def get_image(url, filename) :
 
 def worker():
     while True:
-        subr, id, url = job_pool.get()
-        get_image(url, f"./{subr.lower()}/{id}.{url[-3:]}")
-        job_pool.task_done()
-        if job_pool.empty():
+        try:
+            subr, id, url = job_pool.get(timeout=10)
+            get_image(url, f"./{subr.lower()}/{id}.{url[-3:]}")
+            job_pool.task_done()
+        except queue.Empty:
             break
 
 all_threads = [threading.Thread(target=worker) for _ in range(MAX_WORKERS)]
@@ -63,13 +67,14 @@ os.makedirs(f"./{SUBREDDIT.lower()}", exist_ok=True)
 
 all_count = 0
 all_limit = MAX_IMG
-datafile.write("SUBREDDIT,ID,SCORE,URL,\n")
+datafile.write("ID,SCORE,SUBREDDIT,URL,UNIX TIME,UPVOTE RATIO\n")
 for submission in reddit.subreddit(SUBREDDIT).new(limit=None):
     if (unixnow - submission.created_utc) > 604800:
         srname = submission.subreddit.display_name.lower()
         if submission.url[-3:] not in ACCEPTABLE_EXTENSIONS:
             continue
-        datafile.write(f"{srname},{submission.id},{submission.score},{submission.url}\n")
+        datafile.write(f"{submission.id},{submission.score},{srname},{submission.url}," + \
+                            f"{submission.created_utc},{submission.upvote_ratio}\n")
         job_pool.put((srname, submission.id, submission.url))
         all_count += 1
 
