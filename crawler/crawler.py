@@ -39,7 +39,7 @@ def get_image(url, filename) :
     with Image.open(filename) as im:
         im.thumbnail(MAX_RESOLUTION)
         im = im.convert("RGB")
-        im.save(filename[:-3]+"jpeg", "JPEG")
+        im.save(filename[:-3]+"jpeg", "JPEG", quality=50, optimize=True)
     os.remove(filename)
 
 def worker():
@@ -56,7 +56,7 @@ for t in all_threads:
 
 now = datetime.datetime.now()
 unixnow = int(datetime.datetime.timestamp(now))
-datafile = open(f"crawl_{now.month:02}{now.day:02}.csv", 'w')
+datafile = open(f"crawl_{now.month:02}{now.day:02}_{SUBREDDIT}.csv", 'w')
 datafile.write("CS4243_crawler data\n")
 datafile.write(f"subreddit: {SUBREDDIT} \n")
 os.makedirs(f"./{SUBREDDIT.lower()}", exist_ok=True)
