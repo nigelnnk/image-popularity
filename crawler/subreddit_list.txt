@@ -1,3 +1,4 @@
+ImaginaryArchers
 ImaginaryAssassins
 ImaginaryAstronauts
 ImaginaryKnights
