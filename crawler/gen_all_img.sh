@@ -1,5 +1,5 @@
 #!/bin/bash
-NUM_FILES=10
+NUM_FILES=550
 conda activate reddit
 sleep 1
 
