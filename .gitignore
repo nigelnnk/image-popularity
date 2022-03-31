@@ -1,5 +1,10 @@
 # Custom
 crawler/praw.ini
+crawler/imaginarynetwork/
+crawler/imaginary.zip
+crawler/sfwnetwork/
+crawler/sfwnetwork.zip
+crawler/dataset.tar.gz
 
 
 # --------------------------------------------------
