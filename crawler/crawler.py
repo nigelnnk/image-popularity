@@ -48,11 +48,13 @@ def get_image(url, filename) :
 def worker():
     while True:
         try:
-            subr, id, url = job_pool.get(timeout=10)
+            subr, id, url = job_pool.get(timeout=60)
             get_image(url, f"./{subr.lower()}/{id}.{url[-3:]}")
-            job_pool.task_done()
         except queue.Empty:
             break
+        except Exception as e:
+            pass
+        job_pool.task_done()
 
 all_threads = [threading.Thread(target=worker) for _ in range(MAX_WORKERS)]
 for t in all_threads:
@@ -83,5 +85,6 @@ for submission in reddit.subreddit(SUBREDDIT).new(limit=None):
             print(f"Sourcing {all_count}/{all_limit}")
         if all_count == all_limit:
             break
+print(f"Current count: {all_count}")
 job_pool.join()
 print("Done!")
