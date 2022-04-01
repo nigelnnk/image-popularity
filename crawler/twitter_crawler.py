@@ -36,7 +36,7 @@ job_pool = queue.Queue()
 req_header = { "User-Agent": "CS4243 crawler bot", "From": "nnk@u.nus.edu" }
 
 now = datetime.datetime.now()
-datafile = open(f"tweet_crawl_{now.month:02}{now.day:02}_{HASHTAG}_test.csv", 'w')
+datafile = open(f"tweet_crawl_{now.month:02}{now.day:02}_{HASHTAG}.csv", 'w')
 os.makedirs(f"./hashtag/{HASHTAG.lower()}", exist_ok=True)
 
 def get_image(url, filename) :
@@ -57,7 +57,7 @@ def worker():
     while True:
         try:
             hashtag, id, url = job_pool.get(timeout=10)
-            print(url)
+            # print(url)
             get_image(url, f"./hashtag/{hashtag.lower()}/{id}.{url[-3:]}")
             job_pool.task_done()
         except queue.Empty:
