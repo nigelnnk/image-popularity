@@ -1,7 +1,6 @@
 name: image-popularity
 channels:
   - pytorch
-  - nvidia
   - conda-forge
 dependencies:
   - python=3.9
@@ -34,7 +33,7 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  - cudatoolkit=11.1
+  - cudatoolkit=11.3
   - tensorboard
   # Project
   - praw
