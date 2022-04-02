@@ -38,3 +38,4 @@ dependencies:
   # Project
   - praw
   - pillow
+  - optuna
