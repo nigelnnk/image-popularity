@@ -12,12 +12,12 @@ class RedditDataset(Dataset):
     def __init__(
             self,
             path,
-            label_map_path,
+            labels_path,
             image_size,
             split='train',
             load_files_into_memory=False):
         self.path = path
-        self.label_map_path = label_map_path
+        self.labels_path = labels_path
         self.image_size = image_size
         self.split = split
         self.load_files_into_memory = load_files_into_memory
@@ -34,14 +34,18 @@ class RedditDataset(Dataset):
             1.0 / class_count[percentile_bin]
             for percentile_bin in self.data['PERCENTILE BIN']]
 
-        with open(label_map_path) as file:
-            label_map = json.load(file)
-        self._id_to_subreddit = label_map['subreddit_map']
-        self._id_to_percentile_bin = label_map['percentile_bin_map']
+        with open(labels_path) as file:
+            labels = json.load(file)
+        self._subreddits = labels['subreddits']
+        self._percentile_bins = labels['percentile_bins']
+        self._id_to_subreddit = {
+            k: v for k, v in enumerate(self._subreddits)}
+        self._id_to_percentile_bin = {
+            k: v for k, v in enumerate(self._percentile_bins)}
         self._subreddit_to_id = {
-            v: k for k, v in self._id_to_subreddit.items()}
+            v: k for k, v in enumerate(self._subreddits)}
         self._percentile_bin_to_id = {
-            v: k for k, v in self._id_to_percentile_bin.items()}
+            v: k for k, v in enumerate(self._percentile_bins)}
 
         # Data augmentations and transforms
         if self.split == 'train':
@@ -102,6 +106,14 @@ class RedditDataset(Dataset):
     @property
     def sample_weights(self):
         return self._sample_weights
+
+    @property
+    def subreddits(self):
+        return self._subreddits
+
+    @property
+    def percentile_bins(self):
+        return self._percentile_bins
 
     def id_to_subreddit(self, id):
         return self._id_to_subreddit[id]

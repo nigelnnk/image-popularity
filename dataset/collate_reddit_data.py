@@ -26,8 +26,8 @@ def arg_parser():
         help='Path to output collated data CSV file.')
 
     parser.add_argument(
-        '--label_map_path', default='data/reddit_label_map.json', type=str,
-        help='Path to output label map.')
+        '--labels_path', default='data/reddit_labels.json', type=str,
+        help='Path to output labels.')
 
     parser.add_argument(
         '--min_posts', default=500, type=int,
@@ -48,7 +48,7 @@ def arg_parser():
 def collate_reddit_data(
         data_path,
         output_path,
-        label_map_path,
+        labels_path,
         min_posts=1,
         train_size=0.8,
         val_size=0.1):
@@ -84,17 +84,15 @@ def collate_reddit_data(
     data = pd.concat(data_list, ignore_index=True)
     print(f'Skipped subreddits: {skipped_subreddits}')
 
-    # Create and save label map
-    subreddits = data['SUBREDDIT'].unique()
-    subreddit_map = {k: v for k, v in enumerate(subreddits)}
-    percentile_bin_map = {k: v for k, v in enumerate(PERCENTILE_BINS)}
-    label_map = {
-        'subreddit_map': subreddit_map,
-        'percentile_bin_map': percentile_bin_map,
+    # Create and save labels
+    subreddits = list(data['SUBREDDIT'].unique())
+    labels = {
+        'subreddits': subreddits,
+        'percentile_bins': PERCENTILE_BINS,
     }
-    with open(label_map_path, 'w') as file:
-        json.dump(label_map, file, indent=4)
-    print(f'Saved label map to {label_map_path}')
+    with open(labels_path, 'w') as file:
+        json.dump(labels, file, indent=4)
+    print(f'Saved labels to {labels_path}')
 
     # Split dataset
     train, val, test = split_dataset(
