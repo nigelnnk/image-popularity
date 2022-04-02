@@ -65,7 +65,8 @@ class RedditDataset(Dataset):
             )
         else:
             self.resize_crop = torch.nn.Sequential(
-                transforms.Resize((max(image_size), max(image_size))),
+                # TODO: Fix resize and crop during evaluation
+                transforms.Resize(max(image_size)),
                 transforms.CenterCrop(image_size),
             )
             self._transforms = torch.nn.Sequential(
