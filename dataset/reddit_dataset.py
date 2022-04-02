@@ -49,7 +49,7 @@ class RedditDataset(Dataset):
                 transforms.RandomResizedCrop(
                     image_size, scale=(0.08, 1), ratio=(3 / 4, 4 / 3)),
             )
-            self.transforms = torch.nn.Sequential(
+            self._transforms = torch.nn.Sequential(
                 transforms.ColorJitter(
                     brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
                 transforms.RandomHorizontalFlip(),
@@ -64,7 +64,7 @@ class RedditDataset(Dataset):
                 transforms.Resize((max(image_size), max(image_size))),
                 transforms.CenterCrop(image_size),
             )
-            self.transforms = torch.nn.Sequential(
+            self._transforms = torch.nn.Sequential(
                 # See https://pytorch.org/vision/stable/models.html for values
                 transforms.Normalize(
                     mean=[0.485, 0.456, 0.406],
@@ -89,12 +89,15 @@ class RedditDataset(Dataset):
             image = torchvision.io.read_image(data['PATH'])
         image = image / 255.0
         image = self.resize_crop(image)
-        image = self.transforms(image)
 
         subreddit = self.subreddit_to_id(data['SUBREDDIT'])
         percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
 
         return image, subreddit, percentile_bin
+
+    @property
+    def transforms(self):
+        return self._transforms
 
     @property
     def sample_weights(self):
