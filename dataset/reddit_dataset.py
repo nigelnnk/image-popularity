@@ -6,7 +6,6 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 
 class RedditDataset(Dataset):
@@ -26,13 +25,8 @@ class RedditDataset(Dataset):
         self.data = pd.read_csv(path)
         self.data = self.data[self.data['SPLIT'] == self.split]
 
-        # Load files into memory to minimise disk reads
         if self.load_files_into_memory:
-            print(f'Reading {len(self.data)} image files into memory')
-            self.image_files = []
-            for path in tqdm(self.data['PATH']):
-                self.image_files.append(
-                    torch.from_numpy(np.fromfile(path, dtype=np.uint8)))
+            self.image_files = [None] * len(self.data)
 
         # Calculate sample weights to balance data during training
         class_count = self.data['PERCENTILE BIN'].value_counts()
@@ -84,11 +78,15 @@ class RedditDataset(Dataset):
         data = self.data.iloc[idx]
 
         if self.load_files_into_memory:
+            # Load files into memory to minimise disk reads
+            if self.image_files[idx] is None:
+                self.image_files[idx] = torch.from_numpy(np.fromfile(
+                    data['PATH'], dtype=np.uint8))
+
             image_file = self.image_files[idx]
             image = torchvision.io.decode_image(image_file)
         else:
-            path = data['PATH']
-            image = torchvision.io.read_image(path)
+            image = torchvision.io.read_image(data['PATH'])
         image = image / 255.0
         image = self.resize_crop(image)
         image = self.transforms(image)
