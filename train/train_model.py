@@ -12,6 +12,9 @@ CONFIG = {
     'data_path': 'data/reddit_data.csv',
     'labels_path': 'data/reddit_labels.json',
 
+    # Must be one of ['subreddit', 'multireddit', 'network']
+    'reddit_level': 'subreddit',
+
     'save_path': 'data/models/dummy',
     'log_dir': 'data/runs/dummy',
 
@@ -39,6 +42,7 @@ CONFIG = {
 def load_data(
         data_path,
         labels_path,
+        reddit_level,
         split,
         image_size,
         load_files_into_memory=False,
@@ -49,6 +53,7 @@ def load_data(
         data_path,
         labels_path,
         image_size,
+        reddit_level=reddit_level,
         split=split,
         load_files_into_memory=load_files_into_memory)
 
@@ -83,6 +88,7 @@ def load_model(input_channels, hidden_channels, output_channels):
 def train(
         data_path,
         labels_path,
+        reddit_level,
         save_path,
         log_dir=None,
         num_epochs=10,
@@ -105,6 +111,7 @@ def train(
     data_loader_train = load_data(
         data_path,
         labels_path,
+        reddit_level,
         'train',
         image_size,
         load_files_into_memory=load_files_into_memory,
@@ -115,6 +122,7 @@ def train(
     data_loader_eval = load_data(
         data_path,
         labels_path,
+        reddit_level,
         'val',
         image_size,
         load_files_into_memory=load_files_into_memory,

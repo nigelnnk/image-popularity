@@ -14,30 +14,37 @@ class RedditDataset(Dataset):
             path,
             labels_path,
             image_size,
+            reddit_level='subreddit',
             split='train',
             load_files_into_memory=False):
         self.path = path
         self.labels_path = labels_path
         self.image_size = image_size
+        self.reddit_level = reddit_level
         self.split = split
         self.load_files_into_memory = load_files_into_memory
 
         self.data = pd.read_csv(path)
         self.data = self.data[self.data['SPLIT'] == self.split]
 
+        self.data = self.data[self.data[self.reddit_level.upper()].notna()]
+
         if self.load_files_into_memory:
             self.image_files = [None] * len(self.data)
 
         # Calculate sample weights to balance data during training
-        class_count = self.data['PERCENTILE BIN'].value_counts()
+        self.data['FULL CLASS'] = (
+            self.data[self.reddit_level.upper()]
+            + self.data['PERCENTILE BIN'].astype(str))
+        class_count = self.data['FULL CLASS'].value_counts()
         self._sample_weights = [
-            1.0 / class_count[percentile_bin]
-            for percentile_bin in self.data['PERCENTILE BIN']]
+            1.0 / class_count[full_class]
+            for full_class in self.data['FULL CLASS']]
 
         with open(labels_path) as file:
             labels = json.load(file)
-        self._subreddits = labels['subreddits']
-        self._percentile_bins = labels['percentile_bins']
+        self._subreddits = labels[self.reddit_level]
+        self._percentile_bins = labels['percentile_bin']
         self._id_to_subreddit = {
             k: v for k, v in enumerate(self._subreddits)}
         self._id_to_percentile_bin = {
@@ -95,7 +102,7 @@ class RedditDataset(Dataset):
         image = image / 255.0
         image = self.resize_crop(image)
 
-        subreddit = self.subreddit_to_id(data['SUBREDDIT'])
+        subreddit = self.subreddit_to_id(data[self.reddit_level.upper()])
         percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
 
         return image, subreddit, percentile_bin

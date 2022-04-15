@@ -22,6 +22,10 @@ def arg_parser():
         help='Path to reddit data.')
 
     parser.add_argument(
+        '--reddit_levels_path', default='dataset/reddit_levels.csv', type=str,
+        help='Path to reddit levels.')
+
+    parser.add_argument(
         '--output_path', default='data/reddit_data.csv', type=str,
         help='Path to output collated data CSV file.')
 
@@ -47,6 +51,7 @@ def arg_parser():
 
 def collate_reddit_data(
         data_path,
+        reddit_levels_path,
         output_path,
         labels_path,
         min_posts=1,
@@ -84,12 +89,16 @@ def collate_reddit_data(
     data = pd.concat(data_list, ignore_index=True)
     print(f'Skipped subreddits: {skipped_subreddits}')
 
+    # Merge reddit levels
+    reddit_levels = pd.read_csv(reddit_levels_path)
+    data = pd.merge(data, reddit_levels, how='left', on='SUBREDDIT')
+
     # Create and save labels
-    subreddits = list(data['SUBREDDIT'].unique())
     labels = {
-        'subreddits': subreddits,
-        'percentile_bins': PERCENTILE_BINS,
+        'percentile_bin': PERCENTILE_BINS,
     }
+    for level in reddit_levels:
+        labels[level.lower()] = list(data[level].dropna().unique())
     with open(labels_path, 'w') as file:
         json.dump(labels, file, indent=4)
     print(f'Saved labels to {labels_path}')
