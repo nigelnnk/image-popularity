@@ -1,0 +1,41 @@
+name: image-popularity
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pytest
+  # Linters
+  - mypy
+  - bandit
+  - flake8
+  - flake8-bugbear
+  - flake8-docstrings
+  - flake8-import-order
+  - pep8-naming
+  - flake8-comprehensions
+  - flake8-pytest-style
+  - flake8-quotes
+  - darglint
+  # General
+  - jupyter
+  - tqdm
+  - numba
+  # Scientific Python
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - sympy
+  # PyTorch
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit=11.1
+  - tensorboard
+  # Project
+  - praw
+  - pillow
