@@ -1,6 +1,13 @@
 # Custom
 crawler/praw.ini
 data/
+crawler/imaginarynetwork/
+crawler/imaginary.zip
+crawler/sfwnetwork/
+crawler/sfwnetwork.zip
+crawler/dataset.tar.gz
+crawler/hashtag/
+
 
 # --------------------------------------------------
 # Byte-compiled / optimized / DLL files
