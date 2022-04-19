@@ -43,7 +43,7 @@ class AlexNet_Trainer(BaseTrainer):
         images, subreddits, percentile_bins = data
         images = self.data_loader_train.dataset.transforms(images)
         targets = subreddits
-        if self.target == "percentiles":
+        if self.target == "percentile":
             targets = percentile_bins
 
         outputs = self.model(images)
@@ -62,7 +62,7 @@ class AlexNet_Trainer(BaseTrainer):
 
         outputs = torch.argmax(self.model(images), dim=-1)
         labels = subreddits
-        if self.target == "percentiles":
+        if self.target == "percentile":
             labels = percentile_bins
         return outputs, labels
 
@@ -81,10 +81,15 @@ class AlexNet_Trainer(BaseTrainer):
             self.writer.add_scalar(
                 'f1_score', self.current_f1_score, global_step=self.epoch)
 
+        if self.target == "percentile":
+            target_names=["25","50","75","90","100"]
+        else:
+            target_names = self.data_loader_eval.dataset.subreddits
+
         print(classification_report(
             labels,
             outputs,
-            target_names=["25","50","75","90","100"],
+            target_names=target_names,
             digits=5,
             zero_division=0))
 

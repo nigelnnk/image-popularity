@@ -29,8 +29,8 @@ class AlexNet(BaseModel):
         self.init_parameters()        
 
     def init_parameters(self):
-        if self.use_pretrained:
-            self.model_ft = models.alexnet(pretrained=self.use_pretrained)
+        if self.pretrained:
+            self.model_ft = models.alexnet(pretrained=self.pretrained)
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
         else:
             self.model_ft = models.alexnet()
