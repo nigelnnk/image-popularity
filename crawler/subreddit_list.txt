@@ -55,11 +55,6 @@ ImaginaryRobotics
 ImaginaryStarships
 ImaginarySteampunk
 ImaginaryWeaponry
-ImaginaryAww
-ImaginaryColorscapes
-ImaginaryFeels
-imaginarypets
-ImaginarySliceOfLife
 AutumnPorn
 BeachPorn
 BotanicalPorn
