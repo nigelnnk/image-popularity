@@ -14,13 +14,19 @@ class RedditDataset(Dataset):
             path,
             labels_path,
             image_size,
-            reddit_level='subreddit',
+            reddit_level='multireddit',
+            hierarchical=False,
+            coarse_level='network',
+            filter=None,
             split='train',
             load_files_into_memory=False):
         self.path = path
         self.labels_path = labels_path
         self.image_size = image_size
         self.reddit_level = reddit_level
+        self.hierarchical = hierarchical
+        self.coarse_level = coarse_level
+        self.filter = filter
         self.split = split
         self.load_files_into_memory = load_files_into_memory
 
@@ -28,6 +34,10 @@ class RedditDataset(Dataset):
         self.data = self.data[self.data['SPLIT'] == self.split]
 
         self.data = self.data[self.data[self.reddit_level.upper()].notna()]
+
+        if filter:
+            self.data = self.data[
+                self.data[self.coarse_level.upper()] == filter]
 
         if self.load_files_into_memory:
             self.image_files = [None] * len(self.data)
@@ -43,14 +53,26 @@ class RedditDataset(Dataset):
 
         with open(labels_path) as file:
             labels = json.load(file)
-        self._subreddits = labels[self.reddit_level]
+        self._subreddits = labels['subreddit']
+        self._multireddits = labels['multireddit']
+        self._networks = labels['network']
         self._percentile_bins = labels['percentile_bin']
+
         self._id_to_subreddit = {
             k: v for k, v in enumerate(self._subreddits)}
+        self._id_to_multireddit = {
+            k: v for k, v in enumerate(self._multireddits)}
+        self._id_to_network = {
+            k: v for k, v in enumerate(self._networks)}
         self._id_to_percentile_bin = {
             k: v for k, v in enumerate(self._percentile_bins)}
+
         self._subreddit_to_id = {
             v: k for k, v in enumerate(self._subreddits)}
+        self._multireddit_to_id = {
+            v: k for k, v in enumerate(self._multireddits)}
+        self._network_to_id = {
+            v: k for k, v in enumerate(self._networks)}
         self._percentile_bin_to_id = {
             v: k for k, v in enumerate(self._percentile_bins)}
 
@@ -102,10 +124,20 @@ class RedditDataset(Dataset):
         image = image / 255.0
         image = self.resize_crop(image)
 
-        subreddit = self.subreddit_to_id(data[self.reddit_level.upper()])
-        percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
+        if self.hierarchical:
+            label = self.label_to_id(data[self.reddit_level.upper()])
 
-        return image, subreddit, percentile_bin
+            reddit_level = self.reddit_level
+            self.reddit_level = self.coarse_level
+            coarse_label = self.label_to_id(data[self.reddit_level.upper()])
+            self.reddit_level = reddit_level
+
+            percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
+            return image, (label, coarse_label), percentile_bin
+        else:
+            label = self.label_to_id(data[self.reddit_level.upper()])
+            percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
+            return image, label, percentile_bin
 
     @property
     def transforms(self):
@@ -116,21 +148,66 @@ class RedditDataset(Dataset):
         return self._sample_weights
 
     @property
+    def labels(self):
+        if self.reddit_level == 'subreddit':
+            return self._subreddits
+        elif self.reddit_level == 'multireddit':
+            return self._multireddits
+        elif self.reddit_level == 'network':
+            return self._networks
+
+    @property
     def subreddits(self):
         return self._subreddits
+
+    @property
+    def multireddits(self):
+        return self._multireddits
+
+    @property
+    def networks(self):
+        return self._networks
 
     @property
     def percentile_bins(self):
         return self._percentile_bins
 
+    def id_to_label(self, id):
+        if self.reddit_level == 'subreddit':
+            return self._id_to_subreddit[id]
+        elif self.reddit_level == 'multireddit':
+            return self._id_to_multireddit[id]
+        elif self.reddit_level == 'network':
+            return self._id_to_network[id]
+
     def id_to_subreddit(self, id):
         return self._id_to_subreddit[id]
+
+    def id_to_multireddit(self, id):
+        return self._id_to_multireddit[id]
+
+    def id_to_network(self, id):
+        return self._id_to_network[id]
 
     def id_to_percentile_bin(self, id):
         return self._id_to_percentile_bin[id]
 
+    def label_to_id(self, label):
+        if self.reddit_level == 'subreddit':
+            return self._subreddit_to_id[label]
+        elif self.reddit_level == 'multireddit':
+            return self._multireddit_to_id[label]
+        elif self.reddit_level == 'network':
+            return self._network_to_id[label]
+
     def subreddit_to_id(self, subreddit):
         return self._subreddit_to_id[subreddit]
+
+    def multireddit_to_id(self, multireddit):
+        return self._multireddit_to_id[multireddit]
+
+    def network_to_id(self, network):
+        return self._network_to_id[network]
 
     def percentile_bin_to_id(self, percentile_bin):
         return self._percentile_bin_to_id[percentile_bin]

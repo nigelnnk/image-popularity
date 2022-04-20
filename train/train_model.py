@@ -131,7 +131,7 @@ def train(
         prefetch_factor=prefetch_factor)
 
     model = load_model(
-        3, hidden_channels, len(data_loader_train.dataset.subreddits))
+        3, hidden_channels, len(data_loader_train.dataset.labels))
 
     trainer = Trainer(
         data_loader_train,
