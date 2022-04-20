@@ -40,11 +40,11 @@ class AlexNet_Trainer(BaseTrainer):
     def train_forward(self, data):
         data = recursive_to_device(data, self.device, non_blocking=True)
 
-        images, subreddits, percentile_bins = data
+        images, subreddits, bins = data
         images = self.data_loader_train.dataset.transforms(images)
         targets = subreddits
-        if self.target == "percentile":
-            targets = percentile_bins
+        if self.target in ["percentile", "log"]:
+            targets = bins
 
         outputs = self.model(images)
         loss = self.model.loss(outputs, targets)
@@ -57,13 +57,13 @@ class AlexNet_Trainer(BaseTrainer):
     def eval_forward(self, data):
         data = recursive_to_device(data, self.device, non_blocking=True)
 
-        images, subreddits, percentile_bins = data
+        images, subreddits, bins = data
         images = self.data_loader_eval.dataset.transforms(images)
 
         outputs = torch.argmax(self.model(images), dim=-1)
         labels = subreddits
-        if self.target == "percentile":
-            labels = percentile_bins
+        if self.target in ["percentile", "log"]:
+            labels = bins
         return outputs, labels
 
     def eval_log(self, outputs, labels):
@@ -83,6 +83,8 @@ class AlexNet_Trainer(BaseTrainer):
 
         if self.target == "percentile":
             target_names=["25","50","75","90","100"]
+        elif self.target == "log":
+            target_names = ["10^0", "10^1", "10^2", "10^3", "10^4"]
         else:
             target_names = self.data_loader_eval.dataset.subreddits
 

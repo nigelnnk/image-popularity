@@ -16,6 +16,7 @@ class RedditDataset(Dataset):
             image_size,
             reddit_level='subreddit',
             split='train',
+            score_transform="log",
             load_files_into_memory=False):
         self.path = path
         self.labels_path = labels_path
@@ -23,6 +24,8 @@ class RedditDataset(Dataset):
         self.reddit_level = reddit_level
         self.split = split
         self.load_files_into_memory = load_files_into_memory
+        score_column = {"log": "LOG SCORE BIN", "percentile": "PERCENTILE BIN"}
+        self.score_transform = score_column[score_transform]
 
         self.data = pd.read_csv(path)
         self.data = self.data[self.data['SPLIT'] == self.split]
@@ -35,7 +38,7 @@ class RedditDataset(Dataset):
         # Calculate sample weights to balance data during training
         self.data['FULL CLASS'] = (
             self.data[self.reddit_level.upper()]
-            + self.data['PERCENTILE BIN'].astype(str))
+            + self.data[self.score_transform].astype(str))
         class_count = self.data['FULL CLASS'].value_counts()
         self._sample_weights = [
             1.0 / class_count[full_class]
@@ -45,14 +48,19 @@ class RedditDataset(Dataset):
             labels = json.load(file)
         self._subreddits = labels[self.reddit_level]
         self._percentile_bins = labels['percentile_bin']
+        self._log_score_bins = labels["log_score_bin"]
         self._id_to_subreddit = {
             k: v for k, v in enumerate(self._subreddits)}
         self._id_to_percentile_bin = {
             k: v for k, v in enumerate(self._percentile_bins)}
+        self._id_to_log_score_bin = {
+            k: v for k, v in enumerate(self._log_score_bins)}
         self._subreddit_to_id = {
             v: k for k, v in enumerate(self._subreddits)}
         self._percentile_bin_to_id = {
             v: k for k, v in enumerate(self._percentile_bins)}
+        self._log_score_bin_to_id = {
+            v: k for k, v in enumerate(self._log_score_bins)}
 
         # Data augmentations and transforms
         if self.split == 'train':
@@ -72,7 +80,7 @@ class RedditDataset(Dataset):
             )
         else:
             self.resize_crop = torch.nn.Sequential(
-                # TODO: Fix resize and crop during evaluation
+                # Analysis says that only 2% of the images will occupy less than half the image
                 transforms.Resize(max(image_size)),
                 transforms.CenterCrop(image_size),
             )
@@ -103,9 +111,12 @@ class RedditDataset(Dataset):
         image = self.resize_crop(image)
 
         subreddit = self.subreddit_to_id(data[self.reddit_level.upper()])
-        percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
+        if self.score_transform == "PERCENTILE BIN":
+            bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
+        elif self.score_transform == "LOG SCORE BIN":
+            bin = self.log_score_bin_to_id(data['LOG SCORE BIN'])
 
-        return image, subreddit, percentile_bin
+        return image, subreddit, bin
 
     @property
     def transforms(self):
@@ -123,14 +134,24 @@ class RedditDataset(Dataset):
     def percentile_bins(self):
         return self._percentile_bins
 
+    @property
+    def log_score_bins(self):
+        return self._log_score_bins
+
     def id_to_subreddit(self, id):
         return self._id_to_subreddit[id]
 
     def id_to_percentile_bin(self, id):
         return self._id_to_percentile_bin[id]
+    
+    def id_to_log_score_bin(self, id):
+        return self._id_to_log_score_bin[id]
 
     def subreddit_to_id(self, subreddit):
         return self._subreddit_to_id[subreddit]
 
     def percentile_bin_to_id(self, percentile_bin):
         return self._percentile_bin_to_id[percentile_bin]
+
+    def log_score_bin_to_id(self, bin):
+        return self._log_score_bin_to_id[bin]

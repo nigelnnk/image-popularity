@@ -44,6 +44,7 @@ def load_data(
         split,
         image_size,
         reddit_level='subreddit',
+        score_transform="log",
         load_files_into_memory=False,
         batch_size=32,
         num_workers=8,
@@ -54,6 +55,7 @@ def load_data(
         image_size,
         reddit_level=reddit_level,
         split=split,
+        score_transform=score_transform,
         load_files_into_memory=load_files_into_memory)
 
     if split == 'train':
@@ -115,12 +117,18 @@ def train(
     else:
         reddit_level = "subreddit"
 
+    if target == "log":
+        score_transform = "log"
+    else:
+        score_transform = "percentile"
+
     data_loader_train = load_data(
         data_path,
         labels_path,
         'train',
         image_size,
         reddit_level=reddit_level,
+        score_transform=score_transform,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -135,12 +143,13 @@ def train(
             'val',
             image_size,
             reddit_level=reddit_level,
+            score_transform=score_transform,
             load_files_into_memory=load_files_into_memory,
             batch_size=batch_size,
             num_workers=num_workers,
             prefetch_factor=prefetch_factor)
 
-    output_dict = {'percentile': 5, 'subreddit': 134, 'multireddit': 11, 'network': 2}
+    output_dict = {'percentile': 5, 'log': 5, 'subreddit': 134, 'multireddit': 11, 'network': 2}
     output_len = output_dict[target]
 
     model = load_model(
