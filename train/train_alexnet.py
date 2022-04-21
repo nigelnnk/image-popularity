@@ -11,8 +11,8 @@ from train.alexnet_trainer import AlexNet_Trainer
 CONFIG = {
     # AlexNet specifics at bottom of code
 
-    'data_path': 'data/new_reddit_data.csv',
-    'labels_path': 'data/new_reddit_labels.json',
+    'data_path': 'data/short_reddit_data.csv',
+    'labels_path': 'data/reddit_labels.json',
 
     'save_path': 'data/models/alexnet_mix',
     'log_dir': 'data/runs/alexnet_mix',
@@ -45,6 +45,7 @@ def load_data(
         image_size,
         reddit_level='subreddit',
         score_transform="log",
+        filter="",
         load_files_into_memory=False,
         batch_size=32,
         num_workers=8,
@@ -56,6 +57,7 @@ def load_data(
         reddit_level=reddit_level,
         split=split,
         score_transform=score_transform,
+        filter=filter,
         load_files_into_memory=load_files_into_memory)
 
     if split == 'train':
@@ -107,6 +109,7 @@ def train(
         feature_extract=True,
         use_pretrained=True,
         target="subreddits",
+        filter="",
         overfit=False):
     random.seed(random_seed)
     torch.manual_seed(random_seed)
@@ -131,6 +134,7 @@ def train(
         image_size,
         reddit_level=reddit_level,
         score_transform=score_transform,
+        filter=filter,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -146,6 +150,7 @@ def train(
             image_size,
             reddit_level=reddit_level,
             score_transform=score_transform,
+            filter=filter,
             load_files_into_memory=load_files_into_memory,
             batch_size=batch_size,
             num_workers=num_workers,
@@ -205,6 +210,9 @@ def arg_parser():
         '--target', default='subreddit', type=str,
         help='Attribute to train on: percentile, subreddit, multireddit, network')
     parser.add_argument(
+        '--filter', default='', type=str,
+        help='Filter data to a subset, e.g. multireddit:imraces')
+    parser.add_argument(
         '--pretrained', action='store_true',
         help='Use pretrained weights from torchvision or random weights')
     parser.add_argument(
@@ -222,6 +230,7 @@ if __name__ == '__main__':
     CONFIG["use_pretrained"] = args.pretrained
     CONFIG["overfit"] = args.overfit
     CONFIG["feature_extract"] = args.feature_extract
+    CONFIG["filter"] = args.filter
     
     # tune_hyperparameters(**CONFIG)
     train(**CONFIG)

@@ -17,6 +17,7 @@ class RedditDataset(Dataset):
             reddit_level='subreddit',
             split='train',
             score_transform="log",
+            filter="",
             load_files_into_memory=False):
         self.path = path
         self.labels_path = labels_path
@@ -31,6 +32,12 @@ class RedditDataset(Dataset):
         self.data = self.data[self.data['SPLIT'] == self.split]
 
         self.data = self.data[self.data[self.reddit_level.upper()].notna()]
+
+        self.filter = filter
+        if self.filter:
+            col, fil = self.filter.split(":")
+            self.data = self.data[self.data[col.upper()] == fil]
+            assert self.data.size > 0, "Empty dataset; check filter?"
 
         if self.load_files_into_memory:
             self.image_files = [None] * len(self.data)
@@ -47,6 +54,9 @@ class RedditDataset(Dataset):
         with open(labels_path) as file:
             labels = json.load(file)
         self._subreddits = labels[self.reddit_level]
+        if self.filter:
+            in_data = self.data[self.reddit_level.upper()].unique().tolist()
+            self._subreddits = [x for x in labels[self.reddit_level] if x in in_data]
         self._percentile_bins = labels['percentile_bin']
         self._log_score_bins = labels["log_score_bin"]
         self._id_to_subreddit = {
