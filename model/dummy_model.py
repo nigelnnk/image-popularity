@@ -80,8 +80,7 @@ class DummyModel(BaseModel):
         features = self.activation(features)
 
         features = self.conv_3(features)
-        features = torch.mean(features, dim=(2,3))
-        features = torch.softmax(features, dim=1)
+        features = torch.mean(features, dim=(2, 3))
         return features
 
     def loss(self, outputs, labels):

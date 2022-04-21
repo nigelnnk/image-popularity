@@ -38,11 +38,11 @@ class Trainer(BaseTrainer):
     def train_forward(self, data):
         data = recursive_to_device(data, self.device, non_blocking=True)
 
-        images, subreddits, percentile_bins = data
+        images, labels = data
         images = self.data_loader_train.dataset.transforms(images)
 
         outputs = self.model(images)
-        loss = self.model.loss(outputs, subreddits)
+        loss = self.model.loss(outputs, labels)
         return outputs, loss
 
     def train_log(self, outputs, loss):
@@ -52,11 +52,13 @@ class Trainer(BaseTrainer):
     def eval_forward(self, data):
         data = recursive_to_device(data, self.device, non_blocking=True)
 
-        images, subreddits, percentile_bins = data
+        images, labels = data
         images = self.data_loader_eval.dataset.transforms(images)
 
-        outputs = torch.argmax(self.model(images), dim=-1)
-        labels = subreddits
+        outputs = self.model(images)
+        if isinstance(outputs, tuple):
+            outputs = outputs[0]
+        outputs = torch.argmax(outputs, dim=-1)
         return outputs, labels
 
     def eval_log(self, outputs, labels):
@@ -77,7 +79,8 @@ class Trainer(BaseTrainer):
         print(classification_report(
             labels,
             outputs,
-            target_names=self.data_loader_eval.dataset.subreddits,
+            labels=range(len(self.data_loader_eval.dataset.labels)),
+            target_names=self.data_loader_eval.dataset.labels,
             digits=5,
             zero_division=0))
 

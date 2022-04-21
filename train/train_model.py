@@ -6,17 +6,20 @@ from torch.utils.data import BatchSampler, DataLoader, WeightedRandomSampler
 
 from dataset.reddit_dataset import RedditDataset
 from model.dummy_model import DummyModel
+from model.efficientnet import EfficientNet
 from train.trainer import Trainer
 
 CONFIG = {
-    'data_path': 'data/reddit_data.csv',
+    'data_path': 'data/short_reddit_data.csv',
     'labels_path': 'data/reddit_labels.json',
 
     # Must be one of ['subreddit', 'multireddit', 'network']
-    'reddit_level': 'subreddit',
+    'reddit_level': 'multireddit',
+    'use_reddit_scores': True,
+    'filter': None,
 
-    'save_path': 'data/models/dummy',
-    'log_dir': 'data/runs/dummy',
+    'save_path': 'data/models/efficientnet',
+    'log_dir': 'data/runs/efficientnet',
 
     'num_epochs': 10,
     'steps_per_log': 100,
@@ -29,8 +32,9 @@ CONFIG = {
     'learning_rate': 1e-3,
     'weight_decay': 1e-5,
 
-    'image_size': (128, 128),
-    'hidden_channels': 256,
+    'image_size': (224, 224),
+    'model_name': 'efficientnet_b0',
+    'dropout_rate': 0.2,
 
     # NOTE: Not recommended, each worker will load all image files into memory
     'load_files_into_memory': False,
@@ -43,6 +47,8 @@ def load_data(
         data_path,
         labels_path,
         reddit_level,
+        use_reddit_scores,
+        filter,
         split,
         image_size,
         load_files_into_memory=False,
@@ -54,6 +60,8 @@ def load_data(
         labels_path,
         image_size,
         reddit_level=reddit_level,
+        use_reddit_scores=use_reddit_scores,
+        filter=filter,
         split=split,
         load_files_into_memory=load_files_into_memory)
 
@@ -80,8 +88,15 @@ def load_data(
     return data_loader
 
 
-def load_model(input_channels, hidden_channels, output_channels):
-    model = DummyModel(input_channels, hidden_channels, output_channels)
+def load_model(model_name, num_outputs, dropout_rate=0.1):
+    if model_name == 'dummy':
+        model = DummyModel(3, 256, num_outputs)
+    elif 'efficientnet' in model_name:
+        model = EfficientNet(
+            model_name,
+            num_outputs,
+            dropout_rate=dropout_rate,
+            efficientnet_pretrained=True)
     return model
 
 
@@ -89,6 +104,8 @@ def train(
         data_path,
         labels_path,
         reddit_level,
+        use_reddit_scores,
+        filter,
         save_path,
         log_dir=None,
         num_epochs=10,
@@ -100,8 +117,9 @@ def train(
         prefetch_factor=4,
         learning_rate=1e-3,
         weight_decay=1e-5,
-        image_size=(256, 256),
-        hidden_channels=32,
+        image_size=(224, 224),
+        model_name='efficientnet_b0',
+        dropout_rate=0.1,
         load_files_into_memory=False,
         random_seed=0):
     random.seed(random_seed)
@@ -112,6 +130,8 @@ def train(
         data_path,
         labels_path,
         reddit_level,
+        use_reddit_scores,
+        filter,
         'train',
         image_size,
         load_files_into_memory=load_files_into_memory,
@@ -123,6 +143,8 @@ def train(
         data_path,
         labels_path,
         reddit_level,
+        use_reddit_scores,
+        filter,
         'val',
         image_size,
         load_files_into_memory=load_files_into_memory,
@@ -131,7 +153,9 @@ def train(
         prefetch_factor=prefetch_factor)
 
     model = load_model(
-        3, hidden_channels, len(data_loader_train.dataset.subreddits))
+        model_name,
+        len(data_loader_train.dataset.labels),
+        dropout_rate=dropout_rate)
 
     trainer = Trainer(
         data_loader_train,
@@ -159,8 +183,6 @@ def tune_hyperparameters(**config):
             'learning_rate', 1e-5, 1e-2, log=True)
         config['weight_decay'] = trial.suggest_float(
             'weight_decay', 1e-5, 1e-2, log=True)
-        config['hidden_channels'] = trial.suggest_int(
-            'hidden_size', 32, 1024, log=True)
 
         return train(**config)
 

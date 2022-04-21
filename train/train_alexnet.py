@@ -6,7 +6,7 @@ from torch.utils.data import BatchSampler, DataLoader, WeightedRandomSampler
 
 from dataset.reddit_dataset import RedditDataset
 from model.alexnet import AlexNet
-from train.alexnet_trainer import AlexNet_Trainer
+from train.trainer import Trainer
 
 CONFIG = {
     # AlexNet specifics at bottom of code
@@ -29,7 +29,6 @@ CONFIG = {
     'weight_decay': 1e-5,
 
     'image_size': (227, 227),
-    'hidden_channels': 256,
 
     # NOTE: Not recommended, each worker will load all image files into memory
     'load_files_into_memory': False,
@@ -44,6 +43,7 @@ def load_data(
         split,
         image_size,
         reddit_level='subreddit',
+        use_reddit_scores=False,
         filter="",
         load_files_into_memory=False,
         batch_size=32,
@@ -54,6 +54,7 @@ def load_data(
         labels_path,
         image_size,
         reddit_level=reddit_level,
+        use_reddit_scores=use_reddit_scores,
         split=split,
         filter=filter,
         load_files_into_memory=load_files_into_memory)
@@ -101,24 +102,17 @@ def train(
         learning_rate=1e-3,
         weight_decay=1e-5,
         image_size=(256, 256),
-        hidden_channels=32,
         load_files_into_memory=False,
         random_seed=0,
         feature_extract=True,
         use_pretrained=True,
-        target="subreddits",
         filter="",
-        overfit=False):
+        overfit=False,
+        reddit_level='multireddit',
+        use_reddit_scores=False):
     random.seed(random_seed)
     torch.manual_seed(random_seed)
     torch.use_deterministic_algorithms(True)
-
-    if target in ["multireddit" , "network"]:
-        reddit_level = target
-    elif target == "mix":
-        reddit_level = "multireddit"
-    else:
-        reddit_level = "subreddit"
 
     data_loader_train = load_data(
         data_path,
@@ -126,6 +120,7 @@ def train(
         'train',
         image_size,
         reddit_level=reddit_level,
+        use_reddit_scores=use_reddit_scores,
         filter=filter,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
@@ -141,19 +136,20 @@ def train(
             'val',
             image_size,
             reddit_level=reddit_level,
+            use_reddit_scores=use_reddit_scores,
             filter=filter,
             load_files_into_memory=load_files_into_memory,
             batch_size=batch_size,
             num_workers=num_workers,
             prefetch_factor=prefetch_factor)
 
-    output_dict = {'percentile': 3, 'subreddit': 134, 'multireddit': 11, 'network': 2, 'mix': 3*11}
-    output_len = output_dict[target]
-
     model = load_model(
-        3, output_len, use_pretrained=use_pretrained, feature_extract=feature_extract)
+        3,
+        len(data_loader_train.dataset.labels),
+        use_pretrained=use_pretrained,
+        feature_extract=feature_extract)
 
-    trainer = AlexNet_Trainer(
+    trainer = Trainer(
         data_loader_train,
         data_loader_eval,
         model,
@@ -164,8 +160,7 @@ def train(
         learning_rate=learning_rate,
         weight_decay=weight_decay,
         log_dir=log_dir,
-        save_path=save_path,
-        target=target)
+        save_path=save_path)
 
     trainer.train()
     return trainer.best_f1_score
@@ -198,8 +193,11 @@ def arg_parser():
     parser = argparse.ArgumentParser(
         description="Train AlexNet-like model on reddit datset")
     parser.add_argument(
-        '--target', default='subreddit', type=str,
-        help='Attribute to train on: percentile, subreddit, multireddit, network')
+        '--reddit_level', default='multireddit', type=str,
+        help='Attribute to train on: subreddit, multireddit, network')
+    parser.add_argument(
+        '--use_reddit_scores', action='store_true',
+        help='Use reddit scores along with reddit labels')
     parser.add_argument(
         '--filter', default='', type=str,
         help='Filter data to a subset, e.g. multireddit:imraces')
@@ -217,7 +215,8 @@ def arg_parser():
 
 if __name__ == '__main__':
     args = arg_parser().parse_args()
-    CONFIG["target"] = args.target
+    CONFIG["reddit_level"] = args.reddit_level
+    CONFIG["use_reddit_scores"] = args.use_reddit_scores
     CONFIG["use_pretrained"] = args.pretrained
     CONFIG["overfit"] = args.overfit
     CONFIG["feature_extract"] = args.feature_extract
