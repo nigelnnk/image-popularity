@@ -11,11 +11,11 @@ from train.alexnet_trainer import AlexNet_Trainer
 CONFIG = {
     # AlexNet specifics at bottom of code
 
-    'data_path': 'data/reddit_data.csv',
-    'labels_path': 'data/reddit_labels.json',
+    'data_path': 'data/new_reddit_data.csv',
+    'labels_path': 'data/new_reddit_labels.json',
 
-    'save_path': 'data/models/alexnet_finetune',
-    'log_dir': 'data/runs/alexnet_finetune',
+    'save_path': 'data/models/alexnet_mix',
+    'log_dir': 'data/runs/alexnet_mix',
 
     'num_epochs': 10,
     'steps_per_log': 100,
@@ -114,10 +114,12 @@ def train(
 
     if target in ["multireddit" , "network"]:
         reddit_level = target
+    elif target == "mix":
+        reddit_level = "multireddit"
     else:
         reddit_level = "subreddit"
 
-    if target == "log":
+    if target in ["log"]:
         score_transform = "log"
     else:
         score_transform = "percentile"
@@ -149,7 +151,7 @@ def train(
             num_workers=num_workers,
             prefetch_factor=prefetch_factor)
 
-    output_dict = {'percentile': 5, 'log': 5, 'subreddit': 134, 'multireddit': 11, 'network': 2}
+    output_dict = {'percentile': 3, 'log': 3, 'subreddit': 134, 'multireddit': 11, 'network': 2, 'mix': 3*11}
     output_len = output_dict[target]
 
     model = load_model(

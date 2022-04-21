@@ -10,7 +10,9 @@ from tqdm import tqdm
 
 from dataset.utils import split_dataset
 
-PERCENTILE_BINS = [0.25, 0.5, 0.75, 0.9, 1.0]
+PERCENTILE_BINS = [0.5, 0.9, 1.0]
+MIN_LOG_BIN = 1
+MAX_LOG_BIN = 3
 
 
 def arg_parser():
@@ -92,12 +94,12 @@ def collate_reddit_data(
     # Merge reddit levels
     reddit_levels = pd.read_csv(reddit_levels_path)
     data = pd.merge(data, reddit_levels, how='left', on='SUBREDDIT')
-    data["LOG SCORE BIN"] = np.floor(np.log10(data["SCORE"])).clip(0, 6)
+    data["LOG SCORE BIN"] = np.floor(np.log10(data["SCORE"])).clip(MIN_LOG_BIN, MAX_LOG_BIN)
 
     # Create and save labels
     labels = {
         'percentile_bin': PERCENTILE_BINS,
-        "log_score_bin": list(range(data["LOG SCORE BIN"].to_numpy().max().astype(int) + 1))
+        "log_score_bin": list(range(MIN_LOG_BIN, MAX_LOG_BIN + 1))
     }
     for level in reddit_levels:
         labels[level.lower()] = list(data[level].dropna().unique())
