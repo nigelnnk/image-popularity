@@ -3,21 +3,9 @@ import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
 
 from model.base_model import BaseModel
-
-
-EFFICIENTNET_MODELS = {
-    'efficientnet_b0': models.efficientnet_b0,
-    'efficientnet_b1': models.efficientnet_b1,
-    'efficientnet_b2': models.efficientnet_b2,
-    'efficientnet_b3': models.efficientnet_b3,
-    'efficientnet_b4': models.efficientnet_b4,
-    'efficientnet_b5': models.efficientnet_b5,
-    'efficientnet_b6': models.efficientnet_b6,
-    'efficientnet_b7': models.efficientnet_b7,
-}
+from model.efficientnet import EFFICIENTNET_MODELS
 
 
 class EfficientNetBackbone(nn.Module):
@@ -161,5 +149,5 @@ class HierarchicalEfficientNet(BaseModel):
             labels, coarse_labels = labels
             loss = F.nll_loss(torch.log(outputs), labels)
             coarse_loss = F.nll_loss(torch.log(coarse_outputs), coarse_labels)
-            loss = loss + coarse_loss
+            loss = loss + (0.1 * coarse_loss)
         return loss

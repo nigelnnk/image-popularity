@@ -15,12 +15,12 @@ CONFIG = {
     'save_path': 'data/models/hierarchical',
     'log_dir': 'data/runs/hierarchical',
 
-    'num_epochs': 1,
+    'num_epochs': 3,
     'steps_per_log': 100,
     'epochs_per_eval': 1,
 
     'gradient_accumulation_steps': 1,
-    'batch_size': 128,
+    'batch_size': 64,
     'num_workers': 8,
     'prefetch_factor': 4,
     'learning_rate': 1e-3,
@@ -29,7 +29,7 @@ CONFIG = {
     'image_size': (224, 224),
     'efficientnet_model_name': 'efficientnet_b0',
     'efficientnet_pretrained': True,
-    'dropout_rate': 0.2,
+    'dropout_rate': 0.4,
 
     # NOTE: Not recommended, each worker will load all image files into memory
     'load_files_into_memory': False,
@@ -44,14 +44,16 @@ def load_dataset(
         reddit_level,
         split,
         image_size,
+        use_reddit_scores=True,
         hierarchical=False,
-        coarse_level='network',
+        coarse_level='multireddit',
         filter=None):
     dataset = RedditDataset(
         data_path,
         labels_path,
         image_size,
         reddit_level=reddit_level,
+        use_reddit_scores=use_reddit_scores,
         hierarchical=hierarchical,
         coarse_level=coarse_level,
         filter=filter,
@@ -66,8 +68,9 @@ def load_data(
         reddit_level,
         split,
         image_size,
+        use_reddit_scores=True,
         hierarchical=False,
-        coarse_level='network',
+        coarse_level='multireddit',
         filter=None,
         load_files_into_memory=False,
         batch_size=32,
@@ -78,6 +81,7 @@ def load_data(
         labels_path,
         image_size,
         reddit_level=reddit_level,
+        use_reddit_scores=use_reddit_scores,
         hierarchical=hierarchical,
         coarse_level=coarse_level,
         filter=filter,
@@ -152,14 +156,15 @@ def train(
         'multireddit',
         'train',
         image_size,
+        use_reddit_scores=True,
         hierarchical=True,
-        coarse_level=None,
+        coarse_level='multireddit',
         filter=None)
 
     model = load_model(
         efficientnet_model_name,
-        len(dataset.networks),
         len(dataset.multireddits),
+        len(dataset.reddit_scores),
         dropout_rate=dropout_rate,
         efficientnet_pretrained=efficientnet_pretrained)
 
@@ -168,11 +173,12 @@ def train(
     coarse_data_loader_train = load_data(
         data_path,
         labels_path,
-        'network',
+        'multireddit',
         'train',
         image_size,
+        use_reddit_scores=False,
         hierarchical=False,
-        coarse_level=None,
+        coarse_level='multireddit',
         filter=None,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
@@ -182,11 +188,12 @@ def train(
     coarse_data_loader_eval = load_data(
         data_path,
         labels_path,
-        'network',
+        'multireddit',
         'val',
         image_size,
+        use_reddit_scores=False,
         hierarchical=False,
-        coarse_level=None,
+        coarse_level='multireddit',
         filter=None,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
@@ -210,7 +217,7 @@ def train(
     del coarse_trainer
 
     model.mode = 'fine'
-    for i in range(len(dataset.networks)):
+    for i in range(len(dataset.multireddits)):
         model.fine_category = i
 
         fine_data_loader_train = load_data(
@@ -219,9 +226,10 @@ def train(
             'multireddit',
             'train',
             image_size,
+            use_reddit_scores=True,
             hierarchical=False,
-            coarse_level='network',
-            filter=dataset.networks[i],
+            coarse_level='multireddit',
+            filter=dataset.multireddits[i],
             load_files_into_memory=load_files_into_memory,
             batch_size=batch_size,
             num_workers=num_workers,
@@ -233,9 +241,10 @@ def train(
             'multireddit',
             'val',
             image_size,
+            use_reddit_scores=True,
             hierarchical=False,
-            coarse_level='network',
-            filter=dataset.networks[i],
+            coarse_level='multireddit',
+            filter=dataset.multireddits[i],
             load_files_into_memory=load_files_into_memory,
             batch_size=batch_size,
             num_workers=num_workers,
@@ -266,8 +275,9 @@ def train(
         'multireddit',
         'train',
         image_size,
+        use_reddit_scores=True,
         hierarchical=True,
-        coarse_level='network',
+        coarse_level='multireddit',
         filter=None,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
@@ -280,8 +290,9 @@ def train(
         'multireddit',
         'val',
         image_size,
+        use_reddit_scores=True,
         hierarchical=False,
-        coarse_level=None,
+        coarse_level='multireddit',
         filter=None,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
