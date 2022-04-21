@@ -43,7 +43,7 @@ class AlexNet_Trainer(BaseTrainer):
         images, subreddits, bins = data
         images = self.data_loader_train.dataset.transforms(images)
         targets = subreddits
-        if self.target in ["percentile", "log"]:
+        if self.target == "percentile":
             targets = bins
         elif self.target == "mix":
             targets = subreddits*3 + bins
@@ -64,7 +64,7 @@ class AlexNet_Trainer(BaseTrainer):
 
         outputs = torch.argmax(self.model(images), dim=-1)
         labels = subreddits
-        if self.target in ["percentile", "log"]:
+        if self.target == "percentile":
             labels = bins
         elif self.target == "mix":
             labels = subreddits*3 + bins
@@ -88,8 +88,6 @@ class AlexNet_Trainer(BaseTrainer):
 
         if self.target == "percentile":
             target_names = [str(x) for x in self.data_loader_eval.dataset.percentile_bins]
-        elif self.target == "log":
-            target_names = ["10^1 (bad)", "10^2 (avg)", "10^3  (gd)"]
         elif self.target == "mix":
             mr = self.data_loader_eval.dataset.subreddits
             percent = [str(x) for x in self.data_loader_eval.dataset.percentile_bins]
