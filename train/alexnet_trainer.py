@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 from sklearn.metrics import classification_report, f1_score, confusion_matrix
 

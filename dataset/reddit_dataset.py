@@ -152,7 +152,7 @@ class RedditDataset(Dataset):
 
     def id_to_percentile_bin(self, id):
         return self._id_to_percentile_bin[id]
-    
+
     def subreddit_to_id(self, subreddit):
         return self._subreddit_to_id[subreddit]
 
