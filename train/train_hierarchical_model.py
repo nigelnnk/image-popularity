@@ -15,7 +15,7 @@ CONFIG = {
     'save_path': 'data/models/hierarchical',
     'log_dir': 'data/runs/hierarchical',
 
-    'num_epochs': 1,
+    'num_epochs': 5,
     'steps_per_log': 100,
     'epochs_per_eval': 1,
 

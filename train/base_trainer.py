@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import torch
+import torch.cuda.amp as amp
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -35,6 +36,7 @@ class BaseTrainer(ABC):
         self.log_dir = log_dir
         self.save_path = save_path
 
+        self.cuda = True if torch.cuda.is_available() else False
         self.device = torch.device(
             'cuda' if torch.cuda.is_available() else 'cpu')
         self.model = self.model.to(self.device)
@@ -44,6 +46,9 @@ class BaseTrainer(ABC):
             parameter_dicts,
             lr=self.learning_rate,
             weight_decay=self.weight_decay)
+
+        if self.cuda:
+            self.scaler = amp.GradScaler()
 
         if log_dir is not None:
             self.writer = SummaryWriter(log_dir=self.log_dir)
@@ -74,14 +79,25 @@ class BaseTrainer(ABC):
     def train_epoch(self):
         pbar = tqdm(self.data_loader_train, desc="Training Loss: ?")
         for step, data in enumerate(pbar, start=1):
-            outputs, loss = self.train_forward(data)
+            if self.cuda:
+                with amp.autocast():
+                    outputs, loss = self.train_forward(data)
+            else:
+                outputs, loss = self.train_forward(data)
 
             loss_normalized = loss / self.gradient_accumulation_steps
-            loss_normalized.backward()
+            if self.cuda:
+                self.scaler.scale(loss_normalized).backward()
+            else:
+                loss_normalized.backward()
 
             if step % self.gradient_accumulation_steps == 0 \
                     or step >= len(self.data_loader_train):
-                self.optimizer.step()
+                if self.cuda:
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                else:
+                    self.optimizer.step()
                 self.optimizer.zero_grad(set_to_none=True)
 
             if self.global_step % self.steps_per_log == 0:
