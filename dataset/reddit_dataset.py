@@ -16,9 +16,10 @@ class RedditDataset(Dataset):
             image_size,
             reddit_level='multireddit',
             use_reddit_scores=False,
+            filter=None,
+            filter_labels=True,
             hierarchical=False,
             coarse_level='network',
-            filter=None,
             split='train',
             load_files_into_memory=False):
         self.path = path
@@ -26,9 +27,10 @@ class RedditDataset(Dataset):
         self.image_size = image_size
         self.reddit_level = reddit_level
         self.use_reddit_scores = use_reddit_scores
+        self.filter = filter
+        self.filter_labels = filter_labels
         self.hierarchical = hierarchical
         self.coarse_level = coarse_level
-        self.filter = filter
         self.split = split
         self.load_files_into_memory = load_files_into_memory
 
@@ -37,14 +39,15 @@ class RedditDataset(Dataset):
 
         self.data = self.data[self.data[self.reddit_level.upper()].notna()]
 
+        if self.filter:
+            col, fil = self.filter.split(':')
+            self.data = self.data[self.data[col.upper()] == fil]
+            assert self.data.size > 0, 'Empty dataset; check filter?'
+
         self.data['REDDIT SCORE'] = (
             self.data[self.reddit_level.upper()]
             + '_'
             + self.data['PERCENTILE BIN'].astype(str))
-
-        if filter:
-            self.data = self.data[
-                self.data[self.coarse_level.upper()] == filter]
 
         if self.load_files_into_memory:
             self.image_files = [None] * len(self.data)
@@ -57,9 +60,20 @@ class RedditDataset(Dataset):
 
         with open(labels_path) as file:
             labels = json.load(file)
+
         self._subreddits = labels['subreddit']
         self._multireddits = labels['multireddit']
         self._networks = labels['network']
+
+        if self.filter_labels and self.filter:
+            fil = set(self.data['SUBREDDIT'].unique().tolist())
+            self._subreddits = [x for x in self._subreddits if x in fil]
+
+            fil = set(self.data['MULTIREDDIT'].unique().tolist())
+            self._multireddits = [x for x in self._multireddits if x in fil]
+
+            fil = set(self.data['NETWORK'].unique().tolist())
+            self._networks = [x for x in self._networks if x in fil]
 
         self._reddit_scores = []
         percentile_bins = labels['percentile_bin']
@@ -109,7 +123,8 @@ class RedditDataset(Dataset):
             )
         else:
             self.resize_crop = torch.nn.Sequential(
-                # TODO: Fix resize and crop during evaluation
+                # Analysis says that only 2% of the images will occupy less
+                # than half the image
                 transforms.Resize(max(image_size)),
                 transforms.CenterCrop(image_size),
             )

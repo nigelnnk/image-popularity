@@ -1,21 +1,21 @@
+import argparse
 import random
-
 import optuna
 import torch
 from torch.utils.data import BatchSampler, DataLoader, WeightedRandomSampler
 
 from dataset.reddit_dataset import RedditDataset
 from model.alexnet import AlexNet
-from train.alexnet_trainer import AlexNet_Trainer
+from train.trainer import Trainer
 
 CONFIG = {
     # AlexNet specifics at bottom of code
 
-    'data_path': 'data/reddit_data.csv',
+    'data_path': 'data/short_reddit_data.csv',
     'labels_path': 'data/reddit_labels.json',
 
-    'save_path': 'data/models/alexnet_finetune',
-    'log_dir': 'data/runs/alexnet_finetune',
+    'save_path': 'data/models/alexnet_mix',
+    'log_dir': 'data/runs/alexnet_mix',
 
     'num_epochs': 10,
     'steps_per_log': 100,
@@ -29,7 +29,6 @@ CONFIG = {
     'weight_decay': 1e-5,
 
     'image_size': (227, 227),
-    'hidden_channels': 256,
 
     # NOTE: Not recommended, each worker will load all image files into memory
     'load_files_into_memory': False,
@@ -43,6 +42,9 @@ def load_data(
         labels_path,
         split,
         image_size,
+        reddit_level='subreddit',
+        use_reddit_scores=False,
+        filter="",
         load_files_into_memory=False,
         batch_size=32,
         num_workers=8,
@@ -51,7 +53,10 @@ def load_data(
         data_path,
         labels_path,
         image_size,
+        reddit_level=reddit_level,
+        use_reddit_scores=use_reddit_scores,
         split=split,
+        filter=filter,
         load_files_into_memory=load_files_into_memory)
 
     if split == 'train':
@@ -77,8 +82,8 @@ def load_data(
     return data_loader
 
 
-def load_model(input_channels, hidden_channels, output_channels, use_pretrained=False):
-    model = AlexNet(input_channels, hidden_channels, output_channels, use_pretrained)
+def load_model(input_channels, output_channels, use_pretrained=False, feature_extract=False):
+    model = AlexNet(input_channels, output_channels, use_pretrained, feature_extract)
     return model
 
 
@@ -97,12 +102,14 @@ def train(
         learning_rate=1e-3,
         weight_decay=1e-5,
         image_size=(256, 256),
-        hidden_channels=32,
         load_files_into_memory=False,
         random_seed=0,
+        feature_extract=True,
         use_pretrained=True,
-        target="subreddits",
-        overfit=False):
+        filter="",
+        overfit=False,
+        reddit_level='multireddit',
+        use_reddit_scores=False):
     random.seed(random_seed)
     torch.manual_seed(random_seed)
     torch.use_deterministic_algorithms(True)
@@ -112,6 +119,9 @@ def train(
         labels_path,
         'train',
         image_size,
+        reddit_level=reddit_level,
+        use_reddit_scores=use_reddit_scores,
+        filter=filter,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -125,20 +135,21 @@ def train(
             labels_path,
             'val',
             image_size,
+            reddit_level=reddit_level,
+            use_reddit_scores=use_reddit_scores,
+            filter=filter,
             load_files_into_memory=load_files_into_memory,
             batch_size=batch_size,
             num_workers=num_workers,
             prefetch_factor=prefetch_factor)
 
-    if target == "percentiles":
-        output_len = 5
-    else:
-        output_len = len(data_loader_train.dataset.subreddits)
-
     model = load_model(
-        3, hidden_channels, output_len, use_pretrained=use_pretrained)
+        3,
+        len(data_loader_train.dataset.labels),
+        use_pretrained=use_pretrained,
+        feature_extract=feature_extract)
 
-    trainer = AlexNet_Trainer(
+    trainer = Trainer(
         data_loader_train,
         data_loader_eval,
         model,
@@ -149,8 +160,7 @@ def train(
         learning_rate=learning_rate,
         weight_decay=weight_decay,
         log_dir=log_dir,
-        save_path=save_path,
-        target=target)
+        save_path=save_path)
 
     trainer.train()
     return trainer.best_f1_score
@@ -179,11 +189,38 @@ def tune_hyperparameters(**config):
     print(study.best_params)
     print(study.best_value)
 
+def arg_parser():
+    parser = argparse.ArgumentParser(
+        description="Train AlexNet-like model on reddit datset")
+    parser.add_argument(
+        '--reddit_level', default='multireddit', type=str,
+        help='Attribute to train on: subreddit, multireddit, network')
+    parser.add_argument(
+        '--use_reddit_scores', action='store_true',
+        help='Use reddit scores along with reddit labels')
+    parser.add_argument(
+        '--filter', default='', type=str,
+        help='Filter data to a subset, e.g. multireddit:imraces')
+    parser.add_argument(
+        '--pretrained', action='store_true',
+        help='Use pretrained weights from torchvision or random weights')
+    parser.add_argument(
+        '--overfit', action='store_true',
+        help='Set test set to be same as train set, used for debugging')
+    parser.add_argument(
+        '--feature_extract', action='store_true',
+        help='Freeze nonfinal layers of model')
+    return parser
+
 
 if __name__ == '__main__':
-    CONFIG["target"] = "percentiles"
-    CONFIG["use_pretrained"] = True
-    CONFIG["overfit"] = True
+    args = arg_parser().parse_args()
+    CONFIG["reddit_level"] = args.reddit_level
+    CONFIG["use_reddit_scores"] = args.use_reddit_scores
+    CONFIG["use_pretrained"] = args.pretrained
+    CONFIG["overfit"] = args.overfit
+    CONFIG["feature_extract"] = args.feature_extract
+    CONFIG["filter"] = args.filter
     
     # tune_hyperparameters(**CONFIG)
     train(**CONFIG)

@@ -10,12 +10,13 @@ from model.efficientnet import EfficientNet
 from train.trainer import Trainer
 
 CONFIG = {
-    'data_path': 'data/reddit_data.csv',
+    'data_path': 'data/short_reddit_data.csv',
     'labels_path': 'data/reddit_labels.json',
 
     # Must be one of ['subreddit', 'multireddit', 'network']
     'reddit_level': 'multireddit',
     'use_reddit_scores': True,
+    'filter': None,
 
     'save_path': 'data/models/efficientnet',
     'log_dir': 'data/runs/efficientnet',
@@ -25,7 +26,7 @@ CONFIG = {
     'epochs_per_eval': 1,
 
     'gradient_accumulation_steps': 1,
-    'batch_size': 32,
+    'batch_size': 128,
     'num_workers': 8,
     'prefetch_factor': 4,
     'learning_rate': 1e-3,
@@ -47,6 +48,7 @@ def load_data(
         labels_path,
         reddit_level,
         use_reddit_scores,
+        filter,
         split,
         image_size,
         load_files_into_memory=False,
@@ -59,6 +61,7 @@ def load_data(
         image_size,
         reddit_level=reddit_level,
         use_reddit_scores=use_reddit_scores,
+        filter=filter,
         split=split,
         load_files_into_memory=load_files_into_memory)
 
@@ -102,6 +105,7 @@ def train(
         labels_path,
         reddit_level,
         use_reddit_scores,
+        filter,
         save_path,
         log_dir=None,
         num_epochs=10,
@@ -127,6 +131,7 @@ def train(
         labels_path,
         reddit_level,
         use_reddit_scores,
+        filter,
         'train',
         image_size,
         load_files_into_memory=load_files_into_memory,
@@ -139,6 +144,7 @@ def train(
         labels_path,
         reddit_level,
         use_reddit_scores,
+        filter,
         'val',
         image_size,
         load_files_into_memory=load_files_into_memory,
