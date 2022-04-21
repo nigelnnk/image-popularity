@@ -38,7 +38,7 @@ class Trainer(BaseTrainer):
     def train_forward(self, data):
         data = recursive_to_device(data, self.device, non_blocking=True)
 
-        images, labels, percentile_bins = data
+        images, labels = data
         images = self.data_loader_train.dataset.transforms(images)
 
         outputs = self.model(images)
@@ -52,7 +52,7 @@ class Trainer(BaseTrainer):
     def eval_forward(self, data):
         data = recursive_to_device(data, self.device, non_blocking=True)
 
-        images, labels, percentile_bins = data
+        images, labels = data
         images = self.data_loader_eval.dataset.transforms(images)
 
         outputs = self.model(images)

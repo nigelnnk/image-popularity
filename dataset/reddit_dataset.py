@@ -15,6 +15,7 @@ class RedditDataset(Dataset):
             labels_path,
             image_size,
             reddit_level='multireddit',
+            use_reddit_scores=False,
             hierarchical=False,
             coarse_level='network',
             filter=None,
@@ -24,6 +25,7 @@ class RedditDataset(Dataset):
         self.labels_path = labels_path
         self.image_size = image_size
         self.reddit_level = reddit_level
+        self.use_reddit_scores = use_reddit_scores
         self.hierarchical = hierarchical
         self.coarse_level = coarse_level
         self.filter = filter
@@ -35,6 +37,11 @@ class RedditDataset(Dataset):
 
         self.data = self.data[self.data[self.reddit_level.upper()].notna()]
 
+        self.data['REDDIT SCORE'] = (
+            self.data[self.reddit_level.upper()]
+            + '_'
+            + self.data['PERCENTILE BIN'].astype(str))
+
         if filter:
             self.data = self.data[
                 self.data[self.coarse_level.upper()] == filter]
@@ -43,20 +50,28 @@ class RedditDataset(Dataset):
             self.image_files = [None] * len(self.data)
 
         # Calculate sample weights to balance data during training
-        self.data['FULL CLASS'] = (
-            self.data[self.reddit_level.upper()]
-            + self.data['PERCENTILE BIN'].astype(str))
-        class_count = self.data['FULL CLASS'].value_counts()
+        class_count = self.data['REDDIT SCORE'].value_counts()
         self._sample_weights = [
-            1.0 / class_count[full_class]
-            for full_class in self.data['FULL CLASS']]
+            1.0 / class_count[score]
+            for score in self.data['REDDIT SCORE']]
 
         with open(labels_path) as file:
             labels = json.load(file)
         self._subreddits = labels['subreddit']
         self._multireddits = labels['multireddit']
         self._networks = labels['network']
-        self._percentile_bins = labels['percentile_bin']
+
+        self._reddit_scores = []
+        percentile_bins = labels['percentile_bin']
+        if self.reddit_level == 'subreddit':
+            labels = self._subreddits
+        elif self.reddit_level == 'multireddit':
+            labels = self._multireddits
+        elif self.reddit_level == 'network':
+            labels = self._networks
+        for label in labels:
+            for score in percentile_bins:
+                self._reddit_scores.append(f'{label}_{score}')
 
         self._id_to_subreddit = {
             k: v for k, v in enumerate(self._subreddits)}
@@ -64,8 +79,8 @@ class RedditDataset(Dataset):
             k: v for k, v in enumerate(self._multireddits)}
         self._id_to_network = {
             k: v for k, v in enumerate(self._networks)}
-        self._id_to_percentile_bin = {
-            k: v for k, v in enumerate(self._percentile_bins)}
+        self._id_to_reddit_score = {
+            k: v for k, v in enumerate(self._reddit_scores)}
 
         self._subreddit_to_id = {
             v: k for k, v in enumerate(self._subreddits)}
@@ -73,8 +88,8 @@ class RedditDataset(Dataset):
             v: k for k, v in enumerate(self._multireddits)}
         self._network_to_id = {
             v: k for k, v in enumerate(self._networks)}
-        self._percentile_bin_to_id = {
-            v: k for k, v in enumerate(self._percentile_bins)}
+        self._reddit_score_to_id = {
+            v: k for k, v in enumerate(self._reddit_scores)}
 
         # Data augmentations and transforms
         if self.split == 'train':
@@ -124,20 +139,25 @@ class RedditDataset(Dataset):
         image = image / 255.0
         image = self.resize_crop(image)
 
-        if self.hierarchical:
-            label = self.label_to_id(data[self.reddit_level.upper()])
-
-            reddit_level = self.reddit_level
-            self.reddit_level = self.coarse_level
-            coarse_label = self.label_to_id(data[self.reddit_level.upper()])
-            self.reddit_level = reddit_level
-
-            percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
-            return image, (label, coarse_label), percentile_bin
+        if self.use_reddit_scores:
+            label = self.label_to_id(data['REDDIT SCORE'])
         else:
             label = self.label_to_id(data[self.reddit_level.upper()])
-            percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
-            return image, label, percentile_bin
+
+        if self.hierarchical:
+            reddit_level = self.reddit_level
+            use_reddit_scores = self.use_reddit_scores
+
+            self.reddit_level = self.coarse_level
+            self.use_reddit_scores = False
+            coarse_label = self.label_to_id(data[self.reddit_level.upper()])
+
+            self.reddit_level = reddit_level
+            self.use_reddit_scores = use_reddit_scores
+
+            return image, (label, coarse_label)
+        else:
+            return image, label
 
     @property
     def transforms(self):
@@ -149,7 +169,9 @@ class RedditDataset(Dataset):
 
     @property
     def labels(self):
-        if self.reddit_level == 'subreddit':
+        if self.use_reddit_scores:
+            return self._reddit_scores
+        elif self.reddit_level == 'subreddit':
             return self._subreddits
         elif self.reddit_level == 'multireddit':
             return self._multireddits
@@ -169,11 +191,13 @@ class RedditDataset(Dataset):
         return self._networks
 
     @property
-    def percentile_bins(self):
-        return self._percentile_bins
+    def reddit_scores(self):
+        return self._reddit_scores
 
     def id_to_label(self, id):
-        if self.reddit_level == 'subreddit':
+        if self.use_reddit_scores:
+            return self._id_to_reddit_score[id]
+        elif self.reddit_level == 'subreddit':
             return self._id_to_subreddit[id]
         elif self.reddit_level == 'multireddit':
             return self._id_to_multireddit[id]
@@ -189,11 +213,13 @@ class RedditDataset(Dataset):
     def id_to_network(self, id):
         return self._id_to_network[id]
 
-    def id_to_percentile_bin(self, id):
-        return self._id_to_percentile_bin[id]
+    def id_to_reddit_score(self, id):
+        return self._id_to_reddit_score[id]
 
     def label_to_id(self, label):
-        if self.reddit_level == 'subreddit':
+        if self.use_reddit_scores:
+            return self._reddit_score_to_id[label]
+        elif self.reddit_level == 'subreddit':
             return self._subreddit_to_id[label]
         elif self.reddit_level == 'multireddit':
             return self._multireddit_to_id[label]
@@ -209,5 +235,5 @@ class RedditDataset(Dataset):
     def network_to_id(self, network):
         return self._network_to_id[network]
 
-    def percentile_bin_to_id(self, percentile_bin):
-        return self._percentile_bin_to_id[percentile_bin]
+    def reddit_score_to_id(self, reddit_score):
+        return self._reddit_score_to_id[reddit_score]
