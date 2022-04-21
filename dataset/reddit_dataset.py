@@ -16,7 +16,7 @@ class RedditDataset(Dataset):
             image_size,
             reddit_level='subreddit',
             split='train',
-            score_transform="log",
+            score_transform="percentile",
             filter="",
             load_files_into_memory=False):
         self.path = path
@@ -58,19 +58,22 @@ class RedditDataset(Dataset):
             in_data = self.data[self.reddit_level.upper()].unique().tolist()
             self._subreddits = [x for x in labels[self.reddit_level] if x in in_data]
         self._percentile_bins = labels['percentile_bin']
-        self._log_score_bins = labels["log_score_bin"]
+        
         self._id_to_subreddit = {
             k: v for k, v in enumerate(self._subreddits)}
         self._id_to_percentile_bin = {
             k: v for k, v in enumerate(self._percentile_bins)}
-        self._id_to_log_score_bin = {
-            k: v for k, v in enumerate(self._log_score_bins)}
+        
         self._subreddit_to_id = {
             v: k for k, v in enumerate(self._subreddits)}
         self._percentile_bin_to_id = {
             v: k for k, v in enumerate(self._percentile_bins)}
-        self._log_score_bin_to_id = {
-            v: k for k, v in enumerate(self._log_score_bins)}
+
+        # self._log_score_bins = labels["log_score_bin"]
+        # self._id_to_log_score_bin = {
+        #     k: v for k, v in enumerate(self._log_score_bins)}
+        # self._log_score_bin_to_id = {
+        #     v: k for k, v in enumerate(self._log_score_bins)}
 
         # Data augmentations and transforms
         if self.split == 'train':
@@ -123,8 +126,8 @@ class RedditDataset(Dataset):
         subreddit = self.subreddit_to_id(data[self.reddit_level.upper()])
         if self.score_transform == "PERCENTILE BIN":
             bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
-        elif self.score_transform == "LOG SCORE BIN":
-            bin = self.log_score_bin_to_id(data['LOG SCORE BIN'])
+        # elif self.score_transform == "LOG SCORE BIN":
+        #     bin = self.log_score_bin_to_id(data['LOG SCORE BIN'])
 
         return image, subreddit, bin
 
@@ -144,24 +147,24 @@ class RedditDataset(Dataset):
     def percentile_bins(self):
         return self._percentile_bins
 
-    @property
-    def log_score_bins(self):
-        return self._log_score_bins
-
     def id_to_subreddit(self, id):
         return self._id_to_subreddit[id]
 
     def id_to_percentile_bin(self, id):
         return self._id_to_percentile_bin[id]
     
-    def id_to_log_score_bin(self, id):
-        return self._id_to_log_score_bin[id]
-
     def subreddit_to_id(self, subreddit):
         return self._subreddit_to_id[subreddit]
 
     def percentile_bin_to_id(self, percentile_bin):
         return self._percentile_bin_to_id[percentile_bin]
 
-    def log_score_bin_to_id(self, bin):
-        return self._log_score_bin_to_id[bin]
+    # @property
+    # def log_score_bins(self):
+    #     return self._log_score_bins
+
+    # def id_to_log_score_bin(self, id):
+    #     return self._id_to_log_score_bin[id]
+
+    # def log_score_bin_to_id(self, bin):
+    #     return self._log_score_bin_to_id[bin]

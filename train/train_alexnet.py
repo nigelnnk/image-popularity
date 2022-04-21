@@ -122,7 +122,7 @@ def train(
     else:
         reddit_level = "subreddit"
 
-    if target in ["log"]:
+    if target == "log":
         score_transform = "log"
     else:
         score_transform = "percentile"
