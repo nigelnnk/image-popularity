@@ -1,5 +1,5 @@
 import torch
-from sklearn.metrics import classification_report, f1_score
+from sklearn.metrics import classification_report, f1_score, confusion_matrix
 
 from train.base_trainer import BaseTrainer
 from train.utils import recursive_to_device
@@ -40,11 +40,13 @@ class AlexNet_Trainer(BaseTrainer):
     def train_forward(self, data):
         data = recursive_to_device(data, self.device, non_blocking=True)
 
-        images, subreddits, percentile_bins = data
+        images, subreddits, bins = data
         images = self.data_loader_train.dataset.transforms(images)
         targets = subreddits
-        if self.target == "percentiles":
-            targets = percentile_bins
+        if self.target == "percentile":
+            targets = bins
+        elif self.target == "mix":
+            targets = subreddits*3 + bins
 
         outputs = self.model(images)
         loss = self.model.loss(outputs, targets)
@@ -57,13 +59,16 @@ class AlexNet_Trainer(BaseTrainer):
     def eval_forward(self, data):
         data = recursive_to_device(data, self.device, non_blocking=True)
 
-        images, subreddits, percentile_bins = data
+        images, subreddits, bins = data
         images = self.data_loader_eval.dataset.transforms(images)
 
         outputs = torch.argmax(self.model(images), dim=-1)
         labels = subreddits
-        if self.target == "percentiles":
-            labels = percentile_bins
+        if self.target == "percentile":
+            labels = bins
+        elif self.target == "mix":
+            labels = subreddits*3 + bins
+        
         return outputs, labels
 
     def eval_log(self, outputs, labels):
@@ -81,12 +86,24 @@ class AlexNet_Trainer(BaseTrainer):
             self.writer.add_scalar(
                 'f1_score', self.current_f1_score, global_step=self.epoch)
 
+        if self.target == "percentile":
+            target_names = [str(x) for x in self.data_loader_eval.dataset.percentile_bins]
+        elif self.target == "mix":
+            mr = self.data_loader_eval.dataset.subreddits
+            percent = [str(x) for x in self.data_loader_eval.dataset.percentile_bins]
+            target_names = [x+" "+y for x in mr for y in percent]
+        else:
+            target_names = self.data_loader_eval.dataset.subreddits
+
         print(classification_report(
             labels,
             outputs,
-            target_names=["25","50","75","90","100"],
+            target_names=target_names,
             digits=5,
             zero_division=0))
+        if self.target == "multireddit":
+            y_true = labels
+            print(confusion_matrix(y_true, outputs))
 
     def save_model(self):
         if self.save_path is not None and \

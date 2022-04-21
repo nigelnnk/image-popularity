@@ -16,6 +16,7 @@ class RedditDataset(Dataset):
             image_size,
             reddit_level='subreddit',
             split='train',
+            filter="",
             load_files_into_memory=False):
         self.path = path
         self.labels_path = labels_path
@@ -29,13 +30,19 @@ class RedditDataset(Dataset):
 
         self.data = self.data[self.data[self.reddit_level.upper()].notna()]
 
+        self.filter = filter
+        if self.filter:
+            col, fil = self.filter.split(":")
+            self.data = self.data[self.data[col.upper()] == fil]
+            assert self.data.size > 0, "Empty dataset; check filter?"
+
         if self.load_files_into_memory:
             self.image_files = [None] * len(self.data)
 
         # Calculate sample weights to balance data during training
         self.data['FULL CLASS'] = (
             self.data[self.reddit_level.upper()]
-            + self.data['PERCENTILE BIN'].astype(str))
+            + self.data["PERCENTILE BIN"].astype(str))
         class_count = self.data['FULL CLASS'].value_counts()
         self._sample_weights = [
             1.0 / class_count[full_class]
@@ -44,11 +51,16 @@ class RedditDataset(Dataset):
         with open(labels_path) as file:
             labels = json.load(file)
         self._subreddits = labels[self.reddit_level]
+        if self.filter:
+            in_data = self.data[self.reddit_level.upper()].unique().tolist()
+            self._subreddits = [x for x in labels[self.reddit_level] if x in in_data]
         self._percentile_bins = labels['percentile_bin']
+        
         self._id_to_subreddit = {
             k: v for k, v in enumerate(self._subreddits)}
         self._id_to_percentile_bin = {
             k: v for k, v in enumerate(self._percentile_bins)}
+        
         self._subreddit_to_id = {
             v: k for k, v in enumerate(self._subreddits)}
         self._percentile_bin_to_id = {
@@ -72,7 +84,7 @@ class RedditDataset(Dataset):
             )
         else:
             self.resize_crop = torch.nn.Sequential(
-                # TODO: Fix resize and crop during evaluation
+                # Analysis says that only 2% of the images will occupy less than half the image
                 transforms.Resize(max(image_size)),
                 transforms.CenterCrop(image_size),
             )
@@ -103,9 +115,9 @@ class RedditDataset(Dataset):
         image = self.resize_crop(image)
 
         subreddit = self.subreddit_to_id(data[self.reddit_level.upper()])
-        percentile_bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
+        bin = self.percentile_bin_to_id(data['PERCENTILE BIN'])
 
-        return image, subreddit, percentile_bin
+        return image, subreddit, bin
 
     @property
     def transforms(self):
