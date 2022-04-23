@@ -14,8 +14,8 @@ CONFIG = {
     'data_path': 'data/short_reddit_data.csv',
     'labels_path': 'data/reddit_labels.json',
 
-    'save_path': 'data/models/alexnet_mix',
-    'log_dir': 'data/runs/alexnet_mix',
+    'save_path': 'data/models/alexnet_hierarchical',
+    'log_dir': 'data/runs/alexnet_hierarchical',
 
     'num_epochs': 10,
     'steps_per_log': 100,
@@ -36,6 +36,31 @@ CONFIG = {
     'random_seed': 0,
 }
 
+
+def load_dataset(
+        data_path,
+        labels_path,
+        reddit_level,
+        split,
+        image_size,
+        use_reddit_scores=True,
+        filter=None,
+        filter_labels=False,
+        hierarchical=False,
+        coarse_level='multireddit'):
+    dataset = RedditDataset(
+        data_path,
+        labels_path,
+        image_size,
+        reddit_level=reddit_level,
+        use_reddit_scores=use_reddit_scores,
+        filter=filter,
+        filter_labels=filter_labels,
+        hierarchical=hierarchical,
+        coarse_level=coarse_level,
+        split=split,
+        load_files_into_memory=False)
+    return dataset
 
 def load_data(
         data_path,
@@ -82,8 +107,8 @@ def load_data(
     return data_loader
 
 
-def load_model(input_channels, output_channels, use_pretrained=False, feature_extract=False):
-    model = AlexNet(input_channels, output_channels, use_pretrained, feature_extract)
+def load_model(input_channels, output_channels, use_pretrained=True):
+    model = AlexNet(input_channels, output_channels, use_pretrained)
     return model
 
 
@@ -106,29 +131,27 @@ def train(
         random_seed=0,
         use_pretrained=True,
         filter="",
-        overfit=False,
         reddit_level='multireddit',
-        use_reddit_scores=False):
+        use_reddit_scores=False,
+        hierarchy=""):
     random.seed(random_seed)
     torch.manual_seed(random_seed)
     torch.use_deterministic_algorithms(True, warn_only=True)
 
-    data_loader_train = load_data(
-        data_path,
-        labels_path,
-        'train',
-        image_size,
-        reddit_level=reddit_level,
-        use_reddit_scores=use_reddit_scores,
-        filter=filter,
-        load_files_into_memory=load_files_into_memory,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        prefetch_factor=prefetch_factor)
+    if hierarchy == "whole":
+        data_loader_train = load_data(
+            data_path,
+            labels_path,
+            'train',
+            image_size,
+            reddit_level=reddit_level,
+            use_reddit_scores=use_reddit_scores,
+            filter=filter,
+            load_files_into_memory=load_files_into_memory,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            prefetch_factor=prefetch_factor)
 
-    if overfit:
-        data_loader_eval = data_loader_train
-    else:
         data_loader_eval = load_data(
             data_path,
             labels_path,
@@ -142,26 +165,84 @@ def train(
             num_workers=num_workers,
             prefetch_factor=prefetch_factor)
 
-    model = load_model(
-        3,
-        len(data_loader_train.dataset.labels),
-        use_pretrained=use_pretrained)
+        model = load_model(
+            3,
+            len(data_loader_train.dataset.labels),
+            use_pretrained=use_pretrained)
 
-    trainer = Trainer(
-        data_loader_train,
-        data_loader_eval,
-        model,
-        num_epochs=num_epochs,
-        steps_per_log=steps_per_log,
-        epochs_per_eval=epochs_per_eval,
-        gradient_accumulation_steps=gradient_accumulation_steps,
-        learning_rate=learning_rate,
-        weight_decay=weight_decay,
-        log_dir=log_dir,
-        save_path=save_path)
+        trainer = Trainer(
+            data_loader_train,
+            data_loader_eval,
+            model,
+            num_epochs=num_epochs,
+            steps_per_log=steps_per_log,
+            epochs_per_eval=epochs_per_eval,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+            learning_rate=learning_rate,
+            weight_decay=weight_decay,
+            log_dir=log_dir,
+            save_path=save_path)
 
-    trainer.train()
-    return trainer.best_f1_score
+        trainer.train()
+        return trainer.best_f1_score
+    
+    else:
+        dataset = load_dataset(
+            data_path,
+            labels_path,
+            'multireddit',
+            'train',
+            image_size,
+            use_reddit_scores=True,
+            filter=None,
+            filter_labels=False,
+            hierarchical=True,
+            coarse_level='multireddit')
+
+        network_list = dataset.networks
+        multireddit_list = dataset.multireddits
+        hierarchy_dict = { 'network': network_list, 'multireddit': multireddit_list }
+        f1_tally = 0
+        for grain in hierarchy_dict[hierarchy]:
+            data_dict = {}
+            for split in ["train", "val"]:
+                data_dict[split] = load_data(
+                    data_path,
+                    labels_path,
+                    split,
+                    image_size,
+                    reddit_level=reddit_level,
+                    use_reddit_scores=use_reddit_scores,
+                    filter=f"{hierarchy}:{grain}",
+                    load_files_into_memory=load_files_into_memory,
+                    batch_size=batch_size,
+                    num_workers=num_workers,
+                    prefetch_factor=prefetch_factor)
+
+            model = load_model(
+                3,
+                len(data_dict["train"].dataset.labels),
+                use_pretrained=use_pretrained)
+            model.hierarchy_level = hierarchy
+            model.grain_level = grain
+
+            trainer = Trainer(
+                data_dict["train"],
+                data_dict["val"],
+                model,
+                num_epochs=num_epochs,
+                steps_per_log=steps_per_log,
+                epochs_per_eval=epochs_per_eval,
+                gradient_accumulation_steps=gradient_accumulation_steps,
+                learning_rate=learning_rate,
+                weight_decay=weight_decay,
+                log_dir=log_dir,
+                save_path=save_path)
+
+            trainer.train()
+            f1_tally += trainer.best_f1_score
+        
+        return f1_tally / len(hierarchy_dict[hierarchy])
 
 
 def tune_hyperparameters(**config):
@@ -203,8 +284,8 @@ def arg_parser():
         '--pretrained', action='store_true',
         help='Use pretrained weights from torchvision or random weights')
     parser.add_argument(
-        '--overfit', action='store_true',
-        help='Set test set to be same as train set, used for debugging')
+        '--hierarchy', default='whole', type=str,
+        help='Level of hierarchy for model: whole (default), network, multireddit')
     return parser
 
 
@@ -213,8 +294,8 @@ if __name__ == '__main__':
     CONFIG["reddit_level"] = args.reddit_level
     CONFIG["use_reddit_scores"] = args.use_reddit_scores
     CONFIG["use_pretrained"] = args.pretrained
-    CONFIG["overfit"] = args.overfit
     CONFIG["filter"] = args.filter
+    CONFIG["hierarchy"] = args.hierarchy
     
     # tune_hyperparameters(**CONFIG)
     train(**CONFIG)

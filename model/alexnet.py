@@ -13,8 +13,7 @@ class AlexNet(BaseModel):
             self,
             input_channels,
             output_length,
-            use_pretrained=False,
-            feature_extract=False):
+            use_pretrained=False):
         # Initialise BaseModel with model args and kwargs
         # Used saving and loading model
         super().__init__(
@@ -24,14 +23,14 @@ class AlexNet(BaseModel):
         self.input_channels = input_channels
         self.output_length = output_length
         self.pretrained = use_pretrained
-        self.feature_extract = feature_extract
 
         self.init_parameters()        
 
     def init_parameters(self):
         if self.pretrained:
             self.model_ft = models.alexnet(pretrained=self.pretrained)
-            self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
+            for stage in range(10):
+                self.model_ft.features[stage].requires_grad_(False)
         else:
             self.model_ft = models.alexnet()
 
@@ -48,7 +47,6 @@ class AlexNet(BaseModel):
         loss = F.cross_entropy(outputs, labels)
         return loss
 
-    def set_parameter_requires_grad(self, model, feature_extracting):
-        if feature_extracting:
-            for param in model.parameters():
-                param.requires_grad = False
+    def set_parameter_requires_grad(self, model):
+        for param in model.parameters():
+            param.requires_grad = False
