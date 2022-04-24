@@ -115,10 +115,6 @@ class HierarchicalEfficientNet(BaseModel):
 
     @staticmethod
     def probabilistic_averaging_layer(coarse_outputs, fine_outputs):
-        coarse_outputs = F.softmax(coarse_outputs, dim=1)
-        fine_outputs = torch.stack(
-            [F.softmax(outputs, dim=1) for outputs in fine_outputs],
-            dim=1)
         coarse_outputs = torch.unsqueeze(coarse_outputs, -1)
         outputs = torch.sum(coarse_outputs * fine_outputs, dim=1)
         return outputs
@@ -134,9 +130,11 @@ class HierarchicalEfficientNet(BaseModel):
             fine_outputs = fine_head(shared_features)
             return fine_outputs
         else:
-            coarse_outputs = self.coarse_head(shared_features)
-            fine_outputs = [
-                fine_head(shared_features) for fine_head in self.fine_heads]
+            coarse_outputs = F.softmax(
+                self.coarse_head(shared_features), dim=1)
+            fine_outputs = torch.stack([
+                F.softmax(fine_head(shared_features), dim=1)
+                for fine_head in self.fine_heads], dim=1)
             outputs = self.probabilistic_averaging_layer(
                 coarse_outputs, fine_outputs)
             return outputs, coarse_outputs
@@ -147,7 +145,13 @@ class HierarchicalEfficientNet(BaseModel):
         else:
             outputs, coarse_outputs = outputs
             labels, coarse_labels = labels
-            loss = F.nll_loss(torch.log(outputs), labels)
-            coarse_loss = F.nll_loss(torch.log(coarse_outputs), coarse_labels)
-            loss = loss + (0.1 * coarse_loss)
+
+            outputs = torch.log(
+                torch.clamp(outputs, min=1e-9, max=1 - 1e-9))
+            coarse_outputs = torch.log(
+                torch.clamp(coarse_outputs, min=1e-9, max=1 - 1e-9))
+
+            loss = F.nll_loss(outputs, labels)
+            coarse_loss = F.nll_loss(coarse_outputs, coarse_labels)
+            loss = loss + coarse_loss
         return loss
