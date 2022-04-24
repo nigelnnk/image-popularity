@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import BatchSampler, DataLoader, WeightedRandomSampler
 
 from dataset.reddit_dataset import RedditDataset
+from model.alexnet import AlexNet
 from model.dummy_model import DummyModel
 from model.efficientnet import EfficientNet
 from train.trainer import Trainer
@@ -18,8 +19,8 @@ CONFIG = {
     'use_reddit_scores': True,
     'filter': None,
 
-    'save_path': 'data/models/efficientnet',
-    'log_dir': 'data/runs/efficientnet',
+    'save_path': 'data/models/alexnet',
+    'log_dir': 'data/runs/alexnet',
 
     'num_epochs': 10,
     'steps_per_log': 100,
@@ -33,7 +34,7 @@ CONFIG = {
     'weight_decay': 1e-5,
 
     'image_size': (224, 224),
-    'model_name': 'efficientnet_b0',
+    'model_name': 'alexnet',
     'dropout_rate': 0.2,
 
     # NOTE: Not recommended, each worker will load all image files into memory
@@ -47,10 +48,10 @@ def load_data(
         data_path,
         labels_path,
         reddit_level,
-        use_reddit_scores,
-        filter,
         split,
         image_size,
+        use_reddit_scores=True,
+        filter=None,
         load_files_into_memory=False,
         batch_size=32,
         num_workers=8,
@@ -91,6 +92,8 @@ def load_data(
 def load_model(model_name, num_outputs, dropout_rate=0.1):
     if model_name == 'dummy':
         model = DummyModel(3, 256, num_outputs)
+    elif model_name == 'alexnet':
+        model = AlexNet(num_outputs, use_pretrained=True)
     elif 'efficientnet' in model_name:
         model = EfficientNet(
             model_name,
@@ -124,16 +127,16 @@ def train(
         random_seed=0):
     random.seed(random_seed)
     torch.manual_seed(random_seed)
-    torch.use_deterministic_algorithms(True)
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
     data_loader_train = load_data(
         data_path,
         labels_path,
         reddit_level,
-        use_reddit_scores,
-        filter,
         'train',
         image_size,
+        use_reddit_scores=use_reddit_scores,
+        filter=filter,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -143,10 +146,10 @@ def train(
         data_path,
         labels_path,
         reddit_level,
-        use_reddit_scores,
-        filter,
         'val',
         image_size,
+        use_reddit_scores=use_reddit_scores,
+        filter=filter,
         load_files_into_memory=load_files_into_memory,
         batch_size=batch_size,
         num_workers=num_workers,
