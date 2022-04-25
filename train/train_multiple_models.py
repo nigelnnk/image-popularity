@@ -10,22 +10,20 @@ from dataset.reddit_dataset import RedditDataset
 from model.alexnet import AlexNet
 from model.dummy_model import DummyModel
 from model.efficientnet import EfficientNet
+from train.classify import classify
 from train.trainer import Trainer
-from train.utils import recursive_to_device
 
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 CONFIG = {
     'data_path': 'data/short_reddit_data.csv',
     'labels_path': 'data/reddit_labels.json',
 
-    'save_path': 'data/models/alexnet',
-    'log_dir': 'data/runs/alexnet',
+    'save_path': 'data/models/efficientnet',
+    'log_dir': 'data/runs/efficientnet',
 
-    'num_epochs': 5,
+    'num_epochs': 10,
     'steps_per_log': 100,
-    'epochs_per_eval': 1,
+    'epochs_per_eval': 5,
 
     'gradient_accumulation_steps': 1,
     'batch_size': 128,
@@ -35,7 +33,7 @@ CONFIG = {
     'weight_decay': 1e-5,
 
     'image_size': (224, 224),
-    'model_name': 'alexnet',
+    'model_name': 'efficientnet_b0',
     'dropout_rate': 0.2,
 
     # NOTE: Not recommended, each worker will load all image files into memory
@@ -266,12 +264,38 @@ def train(
 
         trainer.train()
 
+
+def evaluate(
+        data_path,
+        labels_path,
+        save_path,
+        batch_size=32,
+        num_workers=8,
+        prefetch_factor=4,
+        image_size=(224, 224),
+        model_name='efficientnet_b0',
+        load_files_into_memory=False,
+        random_seed=0,
+        **kwargs):
+    random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    torch.use_deterministic_algorithms(True, warn_only=True)
+
+    dataset = load_dataset(
+        data_path,
+        labels_path,
+        'multireddit',
+        'test',
+        image_size,
+        use_reddit_scores=True,
+        filter=None)
+
     # Evaluate multireddit classifier
     data_loader_eval = load_data(
         data_path,
         labels_path,
         'multireddit',
-        'val',
+        'test',
         image_size,
         use_reddit_scores=False,
         filter=None,
@@ -280,7 +304,6 @@ def train(
         num_workers=num_workers,
         prefetch_factor=prefetch_factor)
     model = load_trained_model(model_name, f'{save_path}_multireddit')
-    model = model.to(device)
     model = model.eval()
 
     multireddit_outputs, multireddit_labels = classify(data_loader_eval, model)
@@ -299,7 +322,7 @@ def train(
         data_path,
         labels_path,
         'multireddit',
-        'val',
+        'test',
         image_size,
         use_reddit_scores=True,
         filter=None,
@@ -314,7 +337,6 @@ def train(
         pbar.set_description(multireddit)
         model = load_trained_model(
             model_name, f'{save_path}_{multireddit}_score')
-        model = model.to(device)
         model = model.eval()
 
         scores_outputs, scores_labels = classify(data_loader_eval, model)
@@ -353,23 +375,6 @@ def train(
         zero_division=0))
 
 
-def classify(data_loader, model):
-    with torch.no_grad():
-        outputs_list = []
-        labels_list = []
-        for data in tqdm(data_loader, leave=False):
-            data = recursive_to_device(data, device, non_blocking=True)
-            images, labels = data
-            images = data_loader.dataset.transforms(images)
-
-            outputs = F.softmax(model(images), dim=-1)
-
-            outputs_list.append(outputs)
-            labels_list.append(labels)
-        outputs = torch.cat(outputs_list)
-        labels = torch.cat(labels_list)
-        return outputs, labels
-
-
 if __name__ == '__main__':
     train(**CONFIG)
+    evaluate(**CONFIG)

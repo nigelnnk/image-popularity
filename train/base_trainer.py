@@ -82,7 +82,8 @@ class BaseTrainer(ABC):
                 self.save_model()
 
     def train_epoch(self):
-        pbar = tqdm(self.data_loader_train, desc="Training Loss: ?")
+        pbar = tqdm(
+            self.data_loader_train, desc="Training Loss: ?", leave=False)
         for step, data in enumerate(pbar, start=1):
             if self.cuda:
                 with amp.autocast():
@@ -124,7 +125,7 @@ class BaseTrainer(ABC):
         outputs_list = []
         labels_list = []
 
-        pbar = tqdm(self.data_loader_eval, desc="Evaluation")
+        pbar = tqdm(self.data_loader_eval, desc="Evaluation", leave=False)
         for step, data in enumerate(pbar, start=1):
             outputs, labels = self.eval_forward(data)
 

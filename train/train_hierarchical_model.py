@@ -3,9 +3,11 @@ import random
 import optuna
 import torch
 from torch.utils.data import BatchSampler, DataLoader, WeightedRandomSampler
+from sklearn.metrics import classification_report
 
 from dataset.reddit_dataset import RedditDataset
 from model.hierarchical_model import HierarchicalEfficientNet
+from train.classify import classify
 from train.trainer import Trainer
 
 CONFIG = {
@@ -17,7 +19,7 @@ CONFIG = {
 
     'num_epochs': 10,
     'steps_per_log': 100,
-    'epochs_per_eval': 1,
+    'epochs_per_eval': 10,
 
     'gradient_accumulation_steps': 1,
     'batch_size': 128,
@@ -126,6 +128,11 @@ def load_model(
     return model
 
 
+def load_trained_model(model_path):
+    model = HierarchicalEfficientNet.load(model_path)
+    return model
+
+
 def train(
         data_path,
         labels_path,
@@ -148,7 +155,7 @@ def train(
         random_seed=0):
     random.seed(random_seed)
     torch.manual_seed(random_seed)
-    torch.use_deterministic_algorithms(True)
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
     dataset = load_dataset(
         data_path,
@@ -215,6 +222,71 @@ def train(
     return trainer.best_f1_score
 
 
+def evaluate(
+        data_path,
+        labels_path,
+        save_path,
+        batch_size=32,
+        num_workers=8,
+        prefetch_factor=4,
+        image_size=(256, 256),
+        load_files_into_memory=False,
+        random_seed=0,
+        **kwargs):
+    random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    torch.use_deterministic_algorithms(True, warn_only=True)
+
+    dataset = load_dataset(
+        data_path,
+        labels_path,
+        'multireddit',
+        'test',
+        image_size,
+        use_reddit_scores=True,
+        filter=None,
+        hierarchical=True,
+        coarse_level='multireddit')
+
+    data_loader_eval = load_data(
+        data_path,
+        labels_path,
+        'multireddit',
+        'test',
+        image_size,
+        use_reddit_scores=True,
+        filter=None,
+        hierarchical=True,
+        coarse_level='multireddit',
+        load_files_into_memory=load_files_into_memory,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        prefetch_factor=prefetch_factor)
+
+    model = load_trained_model(save_path)
+    model = model.eval()
+
+    outputs, labels = classify(data_loader_eval, model)
+
+    print('Multireddit Classification')
+    print(classification_report(
+        labels[1].detach().cpu().numpy(),
+        torch.argmax(outputs[1], dim=-1).detach().cpu().numpy(),
+        labels=range(len(dataset.multireddits)),
+        target_names=dataset.multireddits,
+        digits=5,
+        zero_division=0))
+
+    print('Multireddit Score Classification')
+    print(classification_report(
+        labels[0].detach().cpu().numpy(),
+        torch.argmax(outputs[0], dim=-1).detach().cpu().numpy(),
+        labels=range(len(dataset.labels)),
+        target_names=dataset.labels,
+        digits=5,
+        zero_division=0))
+
+
 def tune_hyperparameters(**config):
     def objective(trial):
         config['num_epochs'] = 10
@@ -244,3 +316,4 @@ def tune_hyperparameters(**config):
 if __name__ == '__main__':
     # tune_hyperparameters(**CONFIG)
     train(**CONFIG)
+    evaluate(**CONFIG)

@@ -85,9 +85,8 @@ class Trainer(BaseTrainer):
             zero_division=0))
 
     def save_model(self):
-        if self.save_path is not None and \
-                self.current_f1_score >= self.best_f1_score:
+        if self.save_path is not None:
             self.model.save(
                 self.save_path,
-                epoch=self.best_epoch,
-                f1_score=self.best_f1_score)
+                epoch=self.epoch,
+                f1_score=self.current_f1_score)
