@@ -106,16 +106,18 @@ class RedditDataset(Dataset):
             v: k for k, v in enumerate(self._reddit_scores)}
 
         # Data augmentations and transforms
+        # Augmentations follow the following with excetion to larger min crop
+        # https://arxiv.org/abs/1312.5402
+        # https://arxiv.org/abs/1409.4842
         if self.split == 'train':
             self.resize_crop = torch.nn.Sequential(
                 transforms.RandomResizedCrop(
-                    image_size, scale=(0.08, 1), ratio=(3 / 4, 4 / 3)),
+                    image_size, scale=(0.5, 1), ratio=(3 / 4, 4 / 3)),
             )
             self._transforms = torch.nn.Sequential(
                 transforms.ColorJitter(
-                    brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+                    brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),
                 # See https://pytorch.org/vision/stable/models.html for values
                 transforms.Normalize(
                     mean=[0.485, 0.456, 0.406],
