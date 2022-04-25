@@ -46,6 +46,11 @@ class BaseTrainer(ABC):
             parameter_dicts,
             lr=self.learning_rate,
             weight_decay=self.weight_decay)
+        self.lr_scheduler = optim.lr_scheduler.LinearLR(
+            self.optimizer,
+            start_factor=1.0,
+            end_factor=0.0,
+            total_iters=self.num_epochs)
 
         if self.cuda:
             self.scaler = amp.GradScaler()
@@ -105,6 +110,7 @@ class BaseTrainer(ABC):
                 pbar.set_description(f"Training Loss: {loss.item():.3g}")
 
             self.global_step += 1
+        self.lr_scheduler.step()
 
     @abstractmethod
     def train_forward(self, data):
