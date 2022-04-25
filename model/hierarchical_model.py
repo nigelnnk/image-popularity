@@ -116,7 +116,8 @@ class HierarchicalEfficientNet(BaseModel):
     @staticmethod
     def probabilistic_averaging_layer(coarse_outputs, fine_outputs):
         coarse_outputs = torch.unsqueeze(coarse_outputs, -1)
-        outputs = torch.sum(coarse_outputs * fine_outputs, dim=1)
+        outputs = coarse_outputs * fine_outputs
+        outputs = torch.reshape(outputs, (outputs.shape[0], -1))
         return outputs
 
     def forward(self, images):

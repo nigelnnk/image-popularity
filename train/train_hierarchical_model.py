@@ -15,12 +15,12 @@ CONFIG = {
     'save_path': 'data/models/hierarchical',
     'log_dir': 'data/runs/hierarchical',
 
-    'num_epochs': 5,
+    'num_epochs': 10,
     'steps_per_log': 100,
     'epochs_per_eval': 1,
 
     'gradient_accumulation_steps': 1,
-    'batch_size': 64,
+    'batch_size': 128,
     'num_workers': 8,
     'prefetch_factor': 4,
     'learning_rate': 1e-3,
@@ -29,7 +29,7 @@ CONFIG = {
     'image_size': (224, 224),
     'efficientnet_model_name': 'efficientnet_b0',
     'efficientnet_pretrained': True,
-    'dropout_rate': 0.4,
+    'dropout_rate': 0.2,
 
     # NOTE: Not recommended, each worker will load all image files into memory
     'load_files_into_memory': False,
@@ -46,7 +46,6 @@ def load_dataset(
         image_size,
         use_reddit_scores=True,
         filter=None,
-        filter_labels=False,
         hierarchical=False,
         coarse_level='multireddit'):
     dataset = RedditDataset(
@@ -56,7 +55,6 @@ def load_dataset(
         reddit_level=reddit_level,
         use_reddit_scores=use_reddit_scores,
         filter=filter,
-        filter_labels=filter_labels,
         hierarchical=hierarchical,
         coarse_level=coarse_level,
         split=split,
@@ -72,7 +70,6 @@ def load_data(
         image_size,
         use_reddit_scores=True,
         filter=None,
-        filter_labels=False,
         hierarchical=False,
         coarse_level='multireddit',
         load_files_into_memory=False,
@@ -86,7 +83,6 @@ def load_data(
         reddit_level=reddit_level,
         use_reddit_scores=use_reddit_scores,
         filter=filter,
-        filter_labels=filter_labels,
         hierarchical=hierarchical,
         coarse_level=coarse_level,
         split=split,
@@ -162,121 +158,15 @@ def train(
         image_size,
         use_reddit_scores=True,
         filter=None,
-        filter_labels=False,
         hierarchical=True,
         coarse_level='multireddit')
 
     model = load_model(
         efficientnet_model_name,
         len(dataset.multireddits),
-        len(dataset.reddit_scores),
+        int(len(dataset.reddit_scores) / len(dataset.multireddits)),
         dropout_rate=dropout_rate,
         efficientnet_pretrained=efficientnet_pretrained)
-
-    model.mode = 'coarse'
-
-    coarse_data_loader_train = load_data(
-        data_path,
-        labels_path,
-        'multireddit',
-        'train',
-        image_size,
-        use_reddit_scores=False,
-        filter=None,
-        filter_labels=False,
-        hierarchical=False,
-        coarse_level='multireddit',
-        load_files_into_memory=load_files_into_memory,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        prefetch_factor=prefetch_factor)
-
-    coarse_data_loader_eval = load_data(
-        data_path,
-        labels_path,
-        'multireddit',
-        'val',
-        image_size,
-        use_reddit_scores=False,
-        filter=None,
-        filter_labels=False,
-        hierarchical=False,
-        coarse_level='multireddit',
-        load_files_into_memory=load_files_into_memory,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        prefetch_factor=prefetch_factor)
-
-    coarse_trainer = Trainer(
-        coarse_data_loader_train,
-        coarse_data_loader_eval,
-        model,
-        num_epochs=num_epochs,
-        steps_per_log=steps_per_log,
-        epochs_per_eval=epochs_per_eval,
-        gradient_accumulation_steps=gradient_accumulation_steps,
-        learning_rate=learning_rate,
-        weight_decay=weight_decay,
-        log_dir=log_dir,
-        save_path=save_path)
-    coarse_trainer.train()
-    del coarse_data_loader_train, coarse_data_loader_eval
-    del coarse_trainer
-
-    model.mode = 'fine'
-    for i in range(len(dataset.multireddits)):
-        model.fine_category = i
-
-        fine_data_loader_train = load_data(
-            data_path,
-            labels_path,
-            'multireddit',
-            'train',
-            image_size,
-            use_reddit_scores=True,
-            filter=f'multireddit:{dataset.multireddits[i]}',
-            filter_labels=False,
-            hierarchical=False,
-            coarse_level='multireddit',
-            load_files_into_memory=load_files_into_memory,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            prefetch_factor=prefetch_factor)
-
-        fine_data_loader_eval = load_data(
-            data_path,
-            labels_path,
-            'multireddit',
-            'val',
-            image_size,
-            use_reddit_scores=True,
-            filter=f'multireddit:{dataset.multireddits[i]}',
-            filter_labels=False,
-            hierarchical=False,
-            coarse_level='multireddit',
-            load_files_into_memory=load_files_into_memory,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            prefetch_factor=prefetch_factor)
-
-        fine_trainer = Trainer(
-            fine_data_loader_train,
-            fine_data_loader_eval,
-            model,
-            num_epochs=num_epochs,
-            steps_per_log=steps_per_log,
-            epochs_per_eval=epochs_per_eval,
-            gradient_accumulation_steps=gradient_accumulation_steps,
-            learning_rate=learning_rate,
-            weight_decay=weight_decay,
-            log_dir=log_dir,
-            save_path=save_path)
-        fine_trainer.train()
-    del fine_data_loader_train, fine_data_loader_eval
-    del fine_trainer
-    model.fine_category = None
-
-    model.mode = 'hierarchical'
 
     data_loader_train = load_data(
         data_path,
@@ -286,7 +176,6 @@ def train(
         image_size,
         use_reddit_scores=True,
         filter=None,
-        filter_labels=False,
         hierarchical=True,
         coarse_level='multireddit',
         load_files_into_memory=load_files_into_memory,
@@ -302,7 +191,6 @@ def train(
         image_size,
         use_reddit_scores=True,
         filter=None,
-        filter_labels=False,
         hierarchical=False,
         coarse_level='multireddit',
         load_files_into_memory=load_files_into_memory,
