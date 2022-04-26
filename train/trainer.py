@@ -61,10 +61,7 @@ class Trainer:
 
         self.epoch = 1
         self.global_step = 1
-
         self.current_f1_score = float('-inf')
-        self.best_f1_score = float('-inf')
-        self.best_epoch = None
 
     def train(self):
         pbar = tqdm(
@@ -163,10 +160,6 @@ class Trainer:
 
         self.current_f1_score = f1_score(
             labels, outputs, average='macro', zero_division=0)
-
-        if self.current_f1_score >= self.best_f1_score:
-            self.best_f1_score = self.current_f1_score
-            self.best_epoch = self.epoch
 
         if self.writer is not None:
             self.writer.add_scalar(
