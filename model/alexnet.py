@@ -19,9 +19,6 @@ class AlexNet(BaseModel):
         self.output_length = output_length
         self.pretrained = use_pretrained
 
-        self.init_parameters()
-
-    def init_parameters(self):
         if self.pretrained:
             self.model_ft = models.alexnet(pretrained=self.pretrained)
             for stage in range(10):
@@ -31,9 +28,6 @@ class AlexNet(BaseModel):
 
         num_ftrs = self.model_ft.classifier[6].in_features
         self.model_ft.classifier[6] = nn.Linear(num_ftrs, self.output_length)
-
-    def reset_parameters(self):
-        self.init_parameters()
 
     def forward(self, features):
         return self.model_ft(features)

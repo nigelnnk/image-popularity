@@ -8,7 +8,6 @@ from sklearn.metrics import classification_report
 
 from dataset.reddit_dataset import RedditDataset
 from model.alexnet import AlexNet
-from model.dummy_model import DummyModel
 from model.efficientnet import EfficientNet
 from train.classify import classify
 from train.trainer import Trainer
@@ -109,9 +108,7 @@ def load_data(
 
 
 def load_model(model_name, num_outputs, dropout_rate=0.1):
-    if model_name == 'dummy':
-        model = DummyModel(3, 256, num_outputs)
-    elif model_name == 'alexnet':
+    if model_name == 'alexnet':
         model = AlexNet(num_outputs, use_pretrained=True)
     elif 'efficientnet' in model_name:
         model = EfficientNet(
@@ -123,9 +120,7 @@ def load_model(model_name, num_outputs, dropout_rate=0.1):
 
 
 def load_trained_model(model_name, model_path):
-    if model_name == 'dummy':
-        model = DummyModel.load(model_path)
-    elif model_name == 'alexnet':
+    if model_name == 'alexnet':
         model = AlexNet.load(model_path)
     elif 'efficientnet' in model_name:
         model = EfficientNet.load(model_path)

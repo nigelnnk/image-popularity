@@ -49,12 +49,6 @@ class EfficientNet(BaseModel):
             nn.Linear(classifier_input_size, self.num_outputs),
         )
 
-    def init_parameters(self):
-        pass
-
-    def reset_parameters(self):
-        pass
-
     def forward(self, images):
         outputs = self.efficientnet(images)
         return outputs

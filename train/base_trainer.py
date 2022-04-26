@@ -41,9 +41,8 @@ class BaseTrainer(ABC):
             'cuda' if torch.cuda.is_available() else 'cpu')
         self.model = self.model.to(self.device)
 
-        parameter_dicts = self.model.parameter_dicts
         self.optimizer = optim.AdamW(
-            parameter_dicts,
+            self.model.parameters(),
             lr=self.learning_rate,
             weight_decay=self.weight_decay)
         self.lr_scheduler = optim.lr_scheduler.LinearLR(
