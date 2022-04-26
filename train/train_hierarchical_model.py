@@ -9,7 +9,7 @@ from train.load import (load_data, load_dataset, load_hierarchical_model,
 from train.trainer import Trainer
 
 CONFIG = {
-    'data_path': 'data/short_reddit_data.csv',
+    'data_path': 'data/reddit_data.csv',
     'labels_path': 'data/reddit_labels.json',
 
     'save_path': 'data/models/hierarchical',

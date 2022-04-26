@@ -8,7 +8,7 @@ from train.load import load_data, load_model, load_trained_model
 from train.trainer import Trainer
 
 CONFIG = {
-    'data_path': 'data/short_reddit_data.csv',
+    'data_path': 'data/reddit_data.csv',
     'labels_path': 'data/reddit_labels.json',
 
     # Must be one of ['subreddit', 'multireddit', 'network']
