@@ -16,19 +16,18 @@ CONFIG = {
     'log_dir': 'data/runs/hierarchical',
 
     'num_epochs': 10,
-    'steps_per_log': 100,
+    'steps_per_log': 25,
     'epochs_per_eval': 10,
 
     'gradient_accumulation_steps': 1,
     'batch_size': 128,
-    'num_workers': 8,
+    'num_workers': 4,
     'prefetch_factor': 4,
     'learning_rate': 1e-3,
     'weight_decay': 1e-5,
 
     'image_size': (224, 224),
     'efficientnet_model_name': 'efficientnet_b0',
-    'efficientnet_pretrained': True,
     'dropout_rate': 0.2,
 
     # NOTE: Not recommended, each worker will load all image files into memory
@@ -54,13 +53,12 @@ def train(
         weight_decay=1e-5,
         image_size=(256, 256),
         efficientnet_model_name='efficientnet_b0',
-        efficientnet_pretrained=True,
         dropout_rate=0.1,
         load_files_into_memory=False,
         random_seed=0):
     random.seed(random_seed)
     torch.manual_seed(random_seed)
-    torch.use_deterministic_algorithms(True, warn_only=True)
+    # torch.use_deterministic_algorithms(True, warn_only=True)
 
     dataset = load_dataset(
         data_path,

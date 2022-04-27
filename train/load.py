@@ -64,16 +64,14 @@ def load_data(
             batch_sampler=batch_sampler,
             num_workers=num_workers,
             pin_memory=True,
-            prefetch_factor=prefetch_factor,
-            persistent_workers=True)
+            prefetch_factor=prefetch_factor)
     else:
         data_loader = DataLoader(
             dataset,
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
-            prefetch_factor=prefetch_factor,
-            persistent_workers=True)
+            prefetch_factor=prefetch_factor)
 
     return data_loader
 

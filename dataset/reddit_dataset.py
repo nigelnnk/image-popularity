@@ -115,8 +115,8 @@ class RedditDataset(Dataset):
                     image_size, scale=(0.5, 1), ratio=(3 / 4, 4 / 3)),
             )
             self._transforms = torch.nn.Sequential(
-                transforms.ColorJitter(
-                    brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+                # transforms.ColorJitter(
+                #     brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
                 transforms.RandomHorizontalFlip(),
                 # See https://pytorch.org/vision/stable/models.html for values
                 transforms.Normalize(

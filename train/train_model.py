@@ -20,12 +20,12 @@ CONFIG = {
     'log_dir': 'data/runs/efficientnet',
 
     'num_epochs': 10,
-    'steps_per_log': 100,
+    'steps_per_log': 25,
     'epochs_per_eval': 10,
 
     'gradient_accumulation_steps': 1,
     'batch_size': 128,
-    'num_workers': 8,
+    'num_workers': 4,
     'prefetch_factor': 4,
     'learning_rate': 1e-3,
     'weight_decay': 1e-5,
@@ -65,7 +65,7 @@ def train(
         random_seed=0):
     random.seed(random_seed)
     torch.manual_seed(random_seed)
-    torch.use_deterministic_algorithms(True, warn_only=True)
+    # torch.use_deterministic_algorithms(True, warn_only=True)
 
     data_loader_train = load_data(
         data_path,
