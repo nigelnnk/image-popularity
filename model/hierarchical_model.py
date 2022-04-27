@@ -91,12 +91,6 @@ class HierarchicalEfficientNet(BaseModel):
             )
             for _ in range(num_coarse_outputs)])
 
-    def init_parameters(self):
-        pass
-
-    def reset_parameters(self):
-        pass
-
     @property
     def mode(self):
         return self._mode

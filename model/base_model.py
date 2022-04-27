@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 import json
 from pathlib import Path
 
@@ -6,7 +5,7 @@ import torch
 import torch.nn as nn
 
 
-class BaseModel(nn.Module, ABC):
+class BaseModel(nn.Module):
     def __init__(self, *args, **kwargs):
         """Initialise BaseModel with model args and kwargs.
 
@@ -15,25 +14,6 @@ class BaseModel(nn.Module, ABC):
         super(BaseModel, self).__init__()
         self.args = args
         self.kwargs = kwargs
-
-    @abstractmethod
-    def init_parameters(self):
-        """Initialise model parameters."""
-        pass
-
-    @abstractmethod
-    def reset_parameters(self):
-        """Reset model parameters."""
-        pass
-
-    @property
-    def parameter_dicts(self):
-        """Parameter dicts to pass to optimizer.
-
-        Can be overridden for custom per-parameter options.
-        """
-        parameter_dicts = [{'params': self.parameters()}]
-        return parameter_dicts
 
     def save(self, model_path, **config_update):
         """Save model args, kwargs, and state dict."""
